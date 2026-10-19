@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,7 +16,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddToHomeScreen
+import androidx.compose.material.icons.automirrored.filled.AddToHomeScreen
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CropFree
@@ -287,7 +289,7 @@ fun ToolsBottomSheet(
                         modifier = Modifier.weight(1f)
                     )
                     ToolItem(
-                        icon = Icons.Default.OpenInNew,
+                        icon = Icons.AutoMirrored.Filled.OpenInNew,
                         title = "Open with",
                         onClick = onOpenWith,
                         modifier = Modifier.weight(1f)
@@ -341,7 +343,7 @@ fun ToolsBottomSheet(
                     modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AddToHomeScreen,
+                        imageVector = Icons.AutoMirrored.Filled.AddToHomeScreen,
                         contentDescription = "Add to Home / Speed Dial",
                         tint = MaterialTheme.colorScheme.onSurface
                     )
@@ -397,19 +399,23 @@ private fun ToolItem(
     modifier: Modifier = Modifier,
     isActive: Boolean = false
 ) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val bg = if (isActive) primaryColor else Color.Transparent
+    val contentColor = if (isActive) Color.White else MaterialTheme.colorScheme.onSurface
+
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
+            .background(bg)
             .clickable(onClick = onClick)
             .padding(vertical = 8.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        val tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
         Icon(
             imageVector = icon,
             contentDescription = title,
-            tint = tint,
+            tint = contentColor,
             modifier = Modifier.size(24.dp)
         )
 
@@ -419,10 +425,10 @@ private fun ToolItem(
             text = title,
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 11.sp,
-                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
                 lineHeight = 13.sp
             ),
-            color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            color = contentColor,
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis

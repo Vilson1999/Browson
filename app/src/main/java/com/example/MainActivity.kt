@@ -18,13 +18,20 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.core.view.WindowCompat
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material3.FloatingActionButton
@@ -67,7 +74,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            MyApplicationTheme {
+            val uiState by browserViewModel.uiState.collectAsState()
+            val currentAccent = Color(uiState.accentColor)
+            MyApplicationTheme(
+                themeMode = uiState.themeMode,
+                isAmoledDark = uiState.isAmoledDark,
+                accentColor = currentAccent
+            ) {
                 BrowserApp(viewModel = browserViewModel)
             }
         }
@@ -82,6 +95,7 @@ fun BrowserApp(viewModel: BrowserViewModel) {
     val speedDials by viewModel.speedDials.collectAsState()
     val bookmarks by viewModel.bookmarks.collectAsState()
     val history by viewModel.history.collectAsState()
+    val dnsTestResult by viewModel.dnsTestResult.collectAsState()
 
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
@@ -89,6 +103,25 @@ fun BrowserApp(viewModel: BrowserViewModel) {
     val activeTab = uiState.activeTab
     val isCurrentBookmarked = bookmarks.any { it.url == activeTab.url }
     val currentAccent = Color(uiState.accentColor)
+
+    val systemDark = isSystemInDarkTheme()
+    val isDark = when (uiState.themeMode.lowercase()) {
+        "light" -> false
+        "dark" -> true
+        else -> systemDark
+    }
+
+    val window = (context as? ComponentActivity)?.window
+    LaunchedEffect(isDark) {
+        window?.let { w ->
+            val insetsController = WindowCompat.getInsetsController(w, w.decorView)
+            insetsController.isAppearanceLightStatusBars = !isDark
+            insetsController.isAppearanceLightNavigationBars = !isDark
+        }
+    }
+
+    val statusScrimColor = if (isDark) Color(0x80000000) else Color(0x80FFFFFF)
+    val navScrimColor = if (isDark) Color(0x80000000) else Color(0x80FFFFFF)
 
     // Toast Feedback
     LaunchedEffect(uiState.toastMessage) {
@@ -129,47 +162,49 @@ fun BrowserApp(viewModel: BrowserViewModel) {
         }
     }
 
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .testTag("browser_main_scaffold"),
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            if (!uiState.isFullScreen && !uiState.isSettingsOpen) {
-                Column(
-                    modifier = Modifier
-                        .statusBarsPadding()
-                        .background(MaterialTheme.colorScheme.surface)
-                ) {
-                    // Tablet Tab Strip on medium / expanded screens
-                    if (isTablet) {
-                        TabletTabStrip(
-                            tabs = uiState.tabs,
-                            activeTabId = uiState.activeTabId,
-                            onSelectTab = { viewModel.selectTab(it) },
-                            onCloseTab = { viewModel.closeTab(it) },
-                            onNewTab = { viewModel.openNewTab() }
-                        )
-                    }
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("browser_main_scaffold"),
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = {
+                if (!uiState.isFullScreen && !uiState.isSettingsOpen) {
+                    Column(
+                        modifier = Modifier
+                            .statusBarsPadding()
+                            .background(MaterialTheme.colorScheme.surface)
+                    ) {
+                        // Tablet Tab Strip on medium / expanded screens
+                        if (isTablet) {
+                            TabletTabStrip(
+                                tabs = uiState.tabs,
+                                activeTabId = uiState.activeTabId,
+                                onSelectTab = { viewModel.selectTab(it) },
+                                onCloseTab = { viewModel.closeTab(it) },
+                                onNewTab = { viewModel.openNewTab() }
+                            )
+                        }
 
-                    // Top Smart Address Bar
-                    TopAddressBar(
-                        activeTab = activeTab,
-                        isEditing = uiState.isAddressEditing,
-                        inputText = uiState.addressInputText,
-                        isBookmarked = isCurrentBookmarked,
-                        tabCount = uiState.tabs.size,
-                        accentColor = currentAccent,
-                        onStartEditing = { viewModel.setAddressEditing(true) },
-                        onInputChange = { viewModel.onAddressInputChange(it) },
-                        onSubmit = { viewModel.submitSearchOrUrl(it) },
-                        onCancelEditing = { viewModel.setAddressEditing(false) },
-                        onToggleBookmark = { viewModel.toggleCurrentBookmark() },
-                        onReloadOrStop = {
-                            if (activeTab.isLoading) viewModel.stopLoading() else viewModel.reload()
-                        },
-                        onOpenTabs = { viewModel.setTabSwitcherVisible(true) }
-                    )
+                        // Top Smart Address Bar
+                        TopAddressBar(
+                            activeTab = activeTab,
+                            isEditing = uiState.isAddressEditing,
+                            inputText = uiState.addressInputText,
+                            isBookmarked = isCurrentBookmarked,
+                            tabCount = uiState.tabs.size,
+                            accentColor = currentAccent,
+                            onStartEditing = { viewModel.setAddressEditing(true) },
+                            onInputChange = { viewModel.onAddressInputChange(it) },
+                            onSubmit = { viewModel.submitSearchOrUrl(it) },
+                            onCancelEditing = { viewModel.setAddressEditing(false) },
+                            onToggleBookmark = { viewModel.toggleCurrentBookmark() },
+                            onReloadOrStop = {
+                                if (activeTab.isLoading) viewModel.stopLoading() else viewModel.reload()
+                            },
+                            onOpenTabs = { viewModel.setTabSwitcherVisible(true) },
+                            onOpenMenu = { viewModel.setToolsMenuVisible(true) }
+                        )
 
                     // Find In Page Bar
                     AnimatedVisibility(
@@ -194,6 +229,10 @@ fun BrowserApp(viewModel: BrowserViewModel) {
                     actions = toolbarActions,
                     activeTab = activeTab,
                     tabCount = uiState.tabs.size,
+                    isToolsMenuOpen = uiState.isToolsMenuOpen,
+                    isTabSwitcherOpen = uiState.isTabSwitcherOpen,
+                    isBookmarksOpen = uiState.isBookmarksOpen,
+                    isHistoryOpen = uiState.isHistoryOpen,
                     onBack = { viewModel.goBack() },
                     onForward = { viewModel.goForward() },
                     onHome = { viewModel.goHome() },
@@ -347,6 +386,11 @@ fun BrowserApp(viewModel: BrowserViewModel) {
                     onSelectTab = { viewModel.selectTab(it) },
                     onCloseTab = { viewModel.closeTab(it) },
                     onNewTab = { viewModel.openNewTab() },
+                    onNewIncognitoTab = { viewModel.openNewTab(isIncognito = true) },
+                    onOpenHistory = {
+                        viewModel.setTabSwitcherVisible(false)
+                        viewModel.setHistoryVisible(true)
+                    },
                     onCloseAllTabs = { viewModel.closeAllTabs() },
                     onDismiss = { viewModel.setTabSwitcherVisible(false) }
                 )
@@ -361,6 +405,9 @@ fun BrowserApp(viewModel: BrowserViewModel) {
                     },
                     onDeleteBookmark = { id ->
                         viewModel.deleteBookmark(id)
+                    },
+                    onEditBookmark = { id, title, url ->
+                        viewModel.updateBookmark(id, title, url)
                     },
                     onDismiss = { viewModel.setBookmarksVisible(false) }
                 )
@@ -402,6 +449,8 @@ fun BrowserApp(viewModel: BrowserViewModel) {
                 DnsDialog(
                     currentDns = uiState.selectedDns,
                     customDns = uiState.customDns,
+                    dnsTestResult = dnsTestResult,
+                    onTestDns = { viewModel.testCurrentDns() },
                     onSelectDns = { dns ->
                         viewModel.selectDns(dns)
                     },
@@ -416,12 +465,16 @@ fun BrowserApp(viewModel: BrowserViewModel) {
             if (uiState.isSettingsOpen) {
                 SettingsScreen(
                     currentAccentColor = uiState.accentColor,
+                    currentThemeMode = uiState.themeMode,
+                    isAmoledDark = uiState.isAmoledDark,
                     currentWallpaper = uiState.wallpaper,
                     toolbarActions = toolbarActions,
                     isAdBlockerEnabled = uiState.isAdBlockerEnabled,
                     currentDns = uiState.selectedDns,
                     customDns = uiState.customDns,
                     onSelectAccentColor = { color -> viewModel.setAccentColor(color) },
+                    onSelectThemeMode = { mode -> viewModel.setThemeMode(mode) },
+                    onToggleAmoledDark = { amoled -> viewModel.setAmoledDark(amoled) },
                     onSelectWallpaper = { wp -> viewModel.setWallpaper(wp) },
                     onSaveToolbarActions = { updated -> viewModel.updateToolbarActions(updated) },
                     onResetToolbarActions = { viewModel.resetToolbarActions() },
@@ -434,4 +487,23 @@ fun BrowserApp(viewModel: BrowserViewModel) {
             }
         }
     }
+
+    // 50% translucent scrim for notification bar (status bar)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsTopHeight(WindowInsets.statusBars)
+            .background(statusScrimColor)
+            .align(Alignment.TopCenter)
+    )
+
+    // 50% translucent scrim for gesture key (navigation bar)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsBottomHeight(WindowInsets.navigationBars)
+            .background(navScrimColor)
+            .align(Alignment.BottomCenter)
+    )
+}
 }

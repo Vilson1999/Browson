@@ -14,10 +14,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -25,6 +23,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,6 +38,10 @@ fun BottomToolbar(
     actions: List<ToolbarActionItem>,
     activeTab: BrowserTab,
     tabCount: Int,
+    isToolsMenuOpen: Boolean = false,
+    isTabSwitcherOpen: Boolean = false,
+    isBookmarksOpen: Boolean = false,
+    isHistoryOpen: Boolean = false,
     onBack: () -> Unit,
     onForward: () -> Unit,
     onHome: () -> Unit,
@@ -52,19 +56,21 @@ fun BottomToolbar(
     modifier: Modifier = Modifier
 ) {
     val enabledActions = actions.filter { it.isEnabled }
+    val primaryColor = MaterialTheme.colorScheme.primary
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .testTag("bottom_toolbar"),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 6.dp
+        color = if (activeTab.isHome) Color.Transparent else MaterialTheme.colorScheme.surface,
+        tonalElevation = if (activeTab.isHome) 0.dp else 4.dp,
+        shadowElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .height(56.dp)
+                .height(60.dp)
                 .padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
@@ -73,67 +79,60 @@ fun BottomToolbar(
                 when (action.type) {
                     ToolbarActionType.BACK -> {
                         val canBack = activeTab.canGoBack || !activeTab.isHome
-                        IconButton(
-                            onClick = onBack,
+                        ToolbarToolCircle(
+                            icon = action.type.icon,
+                            contentDescription = "Back",
+                            isActive = false,
                             enabled = canBack,
-                            modifier = Modifier.testTag("toolbar_action_back")
-                        ) {
-                            Icon(
-                                imageVector = action.type.icon,
-                                contentDescription = "Back",
-                                tint = if (canBack) MaterialTheme.colorScheme.onSurface
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-                            )
-                        }
+                            onClick = onBack,
+                            testTag = "toolbar_action_back"
+                        )
                     }
 
                     ToolbarActionType.FORWARD -> {
                         val canForward = activeTab.canGoForward
-                        IconButton(
-                            onClick = onForward,
+                        ToolbarToolCircle(
+                            icon = action.type.icon,
+                            contentDescription = "Forward",
+                            isActive = false,
                             enabled = canForward,
-                            modifier = Modifier.testTag("toolbar_action_forward")
-                        ) {
-                            Icon(
-                                imageVector = action.type.icon,
-                                contentDescription = "Forward",
-                                tint = if (canForward) MaterialTheme.colorScheme.onSurface
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-                            )
-                        }
+                            onClick = onForward,
+                            testTag = "toolbar_action_forward"
+                        )
                     }
 
                     ToolbarActionType.HOME -> {
-                        IconButton(
+                        val isActive = activeTab.isHome
+                        ToolbarToolCircle(
+                            icon = action.type.icon,
+                            contentDescription = "Home",
+                            isActive = isActive,
                             onClick = onHome,
-                            modifier = Modifier.testTag("toolbar_action_home")
-                        ) {
-                            Icon(
-                                imageVector = action.type.icon,
-                                contentDescription = "Home",
-                                tint = if (activeTab.isHome) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                            testTag = "toolbar_action_home"
+                        )
                     }
 
                     ToolbarActionType.TABS -> {
-                        // Tab Counter Badge
+                        val isActive = isTabSwitcherOpen
+                        val bg = if (isActive) primaryColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                        val contentColor = if (isActive) Color.White else MaterialTheme.colorScheme.onSurface
+
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(8.dp))
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(bg)
                                 .clickable { onOpenTabs() }
                                 .testTag("toolbar_action_tabs"),
                             contentAlignment = Alignment.Center
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(24.dp)
+                                    .size(22.dp)
                                     .border(
-                                        width = 1.8.dp,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        shape = RoundedCornerShape(6.dp)
+                                        width = 1.6.dp,
+                                        color = contentColor,
+                                        shape = RoundedCornerShape(5.dp)
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -143,121 +142,128 @@ fun BottomToolbar(
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold
                                     ),
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = contentColor
                                 )
                             }
                         }
                     }
 
                     ToolbarActionType.ME -> {
-                        // "Me" icon in circle
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .clickable { onOpenToolsMenu() }
-                                .testTag("toolbar_action_me"),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = "Me Tools Menu",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
+                        val isActive = isToolsMenuOpen
+                        ToolbarToolCircle(
+                            icon = Icons.Default.Person,
+                            contentDescription = "Me Tools Menu",
+                            isActive = isActive,
+                            onClick = onOpenToolsMenu,
+                            testTag = "toolbar_action_me"
+                        )
                     }
 
                     ToolbarActionType.BOOKMARKS -> {
-                        IconButton(
+                        ToolbarToolCircle(
+                            icon = action.type.icon,
+                            contentDescription = "Bookmarks",
+                            isActive = isBookmarksOpen,
                             onClick = onOpenBookmarks,
-                            modifier = Modifier.testTag("toolbar_action_bookmarks")
-                        ) {
-                            Icon(
-                                imageVector = action.type.icon,
-                                contentDescription = "Bookmarks",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                            testTag = "toolbar_action_bookmarks"
+                        )
                     }
 
                     ToolbarActionType.HISTORY -> {
-                        IconButton(
+                        ToolbarToolCircle(
+                            icon = action.type.icon,
+                            contentDescription = "History",
+                            isActive = isHistoryOpen,
                             onClick = onOpenHistory,
-                            modifier = Modifier.testTag("toolbar_action_history")
-                        ) {
-                            Icon(
-                                imageVector = action.type.icon,
-                                contentDescription = "History",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                            testTag = "toolbar_action_history"
+                        )
                     }
 
                     ToolbarActionType.NEW_TAB -> {
-                        IconButton(
+                        ToolbarToolCircle(
+                            icon = action.type.icon,
+                            contentDescription = "New Tab",
+                            isActive = false,
                             onClick = onNewTab,
-                            modifier = Modifier.testTag("toolbar_action_new_tab")
-                        ) {
-                            Icon(
-                                imageVector = action.type.icon,
-                                contentDescription = "New Tab",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                            testTag = "toolbar_action_new_tab"
+                        )
                     }
 
                     ToolbarActionType.RELOAD -> {
-                        IconButton(
+                        val isLoading = activeTab.isLoading
+                        ToolbarToolCircle(
+                            icon = action.type.icon,
+                            contentDescription = "Reload",
+                            isActive = isLoading,
                             onClick = onReload,
-                            modifier = Modifier.testTag("toolbar_action_reload")
-                        ) {
-                            Icon(
-                                imageVector = action.type.icon,
-                                contentDescription = "Reload",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                            testTag = "toolbar_action_reload"
+                        )
                     }
 
                     ToolbarActionType.SHARE -> {
-                        IconButton(
+                        val canShare = !activeTab.isHome && activeTab.url.isNotBlank()
+                        ToolbarToolCircle(
+                            icon = action.type.icon,
+                            contentDescription = "Share",
+                            isActive = false,
+                            enabled = canShare,
                             onClick = onShare,
-                            enabled = !activeTab.isHome,
-                            modifier = Modifier.testTag("toolbar_action_share")
-                        ) {
-                            Icon(
-                                imageVector = action.type.icon,
-                                contentDescription = "Share",
-                                tint = if (!activeTab.isHome) MaterialTheme.colorScheme.onSurface
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-                            )
-                        }
+                            testTag = "toolbar_action_share"
+                        )
                     }
 
                     ToolbarActionType.DESKTOP_MODE -> {
-                        IconButton(
+                        val isActive = activeTab.isDesktopMode
+                        ToolbarToolCircle(
+                            icon = action.type.icon,
+                            contentDescription = "Desktop Site",
+                            isActive = isActive,
                             onClick = onToggleDesktopMode,
-                            modifier = Modifier.testTag("toolbar_action_desktop")
-                        ) {
-                            Icon(
-                                imageVector = action.type.icon,
-                                contentDescription = "Desktop Site",
-                                tint = if (activeTab.isDesktopMode) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                            testTag = "toolbar_action_desktop"
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Circle background for every tool in the toolbar.
+ * Colored with the app's current primary color only when active.
+ */
+@Composable
+private fun ToolbarToolCircle(
+    icon: ImageVector,
+    contentDescription: String,
+    isActive: Boolean,
+    isHome: Boolean = false,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+    testTag: String
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val bg = if (isActive) primaryColor else if (isHome) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    val tint = when {
+        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+        isActive -> Color.White
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(CircleShape)
+            .background(bg)
+            .clickable(enabled = enabled, onClick = onClick)
+            .testTag(testTag),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(22.dp)
+        )
     }
 }

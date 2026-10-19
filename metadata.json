@@ -1,6 +1,6 @@
 {
-  "name": "OperaWave Browser",
-  "description": "Modern web browser for mobile and tablet with Android System WebView, multi-tab switching, speed dials, history management, and customizable bottom toolbar.",
+  "name": "Browson",
+  "description": "Browson - Fast, customizable modern web browser developed by son skr featuring tab switching, speed dials, custom themes, wallpapers, and toolbars.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

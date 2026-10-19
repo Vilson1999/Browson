@@ -61,7 +61,9 @@ data class BrowserUiState(
     val isSettingsOpen: Boolean = false,
     val activeSettingsSection: String? = null,
     val accentColor: Long = 0xFFE5254AL,
-    val wallpaper: String = "Minimal",
+    val themeMode: String = "system",
+    val isAmoledDark: Boolean = false,
+    val wallpaper: String = "wp_black_waves",
     val toastMessage: String? = null
 ) {
     val activeTab: BrowserTab
@@ -77,6 +79,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             tabs = listOf(initialTab),
             activeTabId = initialTab.id,
             accentColor = repository.getAccentColor(),
+            themeMode = repository.getThemeMode(),
+            isAmoledDark = repository.isAmoledDark(),
             wallpaper = repository.getWallpaper(),
             isAdBlockerEnabled = repository.isAdBlockerEnabled(),
             selectedDns = repository.getSelectedDns(),
@@ -101,8 +105,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val webCommands = _webCommands.asSharedFlow()
 
     // Tab Management
-    fun openNewTab(url: String = BrowserTab.HOME_URL) {
-        val newTab = BrowserTab(url = url)
+    fun openNewTab(url: String = BrowserTab.HOME_URL, isIncognito: Boolean = false) {
+        val newTab = BrowserTab(url = url, isIncognito = isIncognito)
         val updatedTabs = _uiState.value.tabs + newTab
         _uiState.value = _uiState.value.copy(
             tabs = updatedTabs,
@@ -135,7 +139,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             val freshTab = BrowserTab()
             _uiState.value = _uiState.value.copy(
                 tabs = listOf(freshTab),
-                activeTabId = freshTab.id
+                activeTabId = freshTab.id,
+                isTabSwitcherOpen = false
             )
             return
         }
@@ -240,7 +245,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
         _uiState.value = _uiState.value.copy(tabs = updatedTabs)
 
-        if (url.isNotBlank() && url != BrowserTab.HOME_URL && !url.startsWith("about:")) {
+        if (url.isNotBlank() && url != BrowserTab.HOME_URL && !url.startsWith("about:") && !active.isIncognito) {
             viewModelScope.launch {
                 repository.recordHistory(url, finalTitle)
             }
@@ -375,6 +380,18 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         showToast("Color theme updated")
     }
 
+    fun setThemeMode(mode: String) {
+        repository.setThemeMode(mode)
+        _uiState.value = _uiState.value.copy(themeMode = mode)
+        showToast("Theme updated")
+    }
+
+    fun setAmoledDark(enabled: Boolean) {
+        repository.setAmoledDark(enabled)
+        _uiState.value = _uiState.value.copy(isAmoledDark = enabled)
+        showToast(if (enabled) "AMOLED Dark enabled" else "AMOLED Dark disabled")
+    }
+
     fun setWallpaper(wallpaper: String) {
         repository.setWallpaper(wallpaper)
         _uiState.value = _uiState.value.copy(wallpaper = wallpaper)
@@ -445,19 +462,37 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         showToast(if (night) "Night mode on" else "Night mode off")
     }
 
+    private val _dnsTestResult = MutableStateFlow<com.example.data.dns.DnsTestResult?>(null)
+    val dnsTestResult: StateFlow<com.example.data.dns.DnsTestResult?> = _dnsTestResult.asStateFlow()
+
     fun setDnsDialogOpen(open: Boolean) {
         _uiState.value = _uiState.value.copy(isDnsDialogOpen = open, isToolsMenuOpen = false)
+        if (open) {
+            testCurrentDns()
+        }
     }
 
     fun selectDns(dns: String) {
         repository.setSelectedDns(dns)
-        _uiState.value = _uiState.value.copy(selectedDns = dns, isDnsDialogOpen = false)
-        showToast("DNS provider set to $dns")
+        _uiState.value = _uiState.value.copy(selectedDns = dns)
+        showToast("DNS set to $dns")
+        testCurrentDns()
     }
 
     fun setCustomDns(customDns: String) {
         repository.setCustomDns(customDns)
         _uiState.value = _uiState.value.copy(customDns = customDns)
+        testCurrentDns()
+    }
+
+    fun testCurrentDns() {
+        viewModelScope.launch {
+            val res = com.example.data.dns.SecureDnsResolver.testDns(
+                _uiState.value.selectedDns,
+                _uiState.value.customDns
+            )
+            _dnsTestResult.value = res
+        }
     }
 
     fun translatePage() {

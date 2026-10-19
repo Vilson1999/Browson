@@ -89,6 +89,10 @@ fun BrowserWebView(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
+    val dnsClient = remember(uiState.selectedDns, uiState.customDns) {
+        com.example.data.dns.SecureDnsResolver.createClient(uiState.selectedDns, uiState.customDns)
+    }
+
     val webView = remember(activeTab.id) {
         WebView(context).apply {
             layoutParams = ViewGroup.LayoutParams(
@@ -163,6 +167,50 @@ fun BrowserWebView(
                         ) {
                             // Block ad and tracking requests with empty response
                             return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0)))
+                        }
+                    }
+
+                    // Secure DNS Over HTTPS Resolution & Fetching
+                    if (uiState.selectedDns != "Default (System DNS)" && request != null && request.method.equals("GET", ignoreCase = true)) {
+                        val urlString = request.url.toString()
+                        if (urlString.startsWith("http://") || urlString.startsWith("https://")) {
+                            try {
+                                val reqBuilder = okhttp3.Request.Builder().url(urlString)
+                                request.requestHeaders?.forEach { (k, v) ->
+                                    reqBuilder.addHeader(k, v)
+                                }
+                                val cookie = android.webkit.CookieManager.getInstance().getCookie(urlString)
+                                if (!cookie.isNullOrBlank()) {
+                                    reqBuilder.addHeader("Cookie", cookie)
+                                }
+                                val response = dnsClient.newCall(reqBuilder.build()).execute()
+                                if (response.isSuccessful && response.body != null) {
+                                    val contentTypeHeader = response.header("Content-Type") ?: "text/html"
+                                    val mimeType = contentTypeHeader.substringBefore(";").trim()
+                                    val encoding = if (contentTypeHeader.contains("charset=")) {
+                                        contentTypeHeader.substringAfter("charset=").substringBefore(";").trim()
+                                    } else "UTF-8"
+                                    val responseHeaders = mutableMapOf<String, String>()
+                                    response.headers.names().forEach { name ->
+                                        responseHeaders[name] = response.header(name) ?: ""
+                                    }
+                                    val setCookies = response.headers("Set-Cookie")
+                                    setCookies.forEach { c ->
+                                        android.webkit.CookieManager.getInstance().setCookie(urlString, c)
+                                    }
+                                    val responseStream = response.body!!.byteStream()
+                                    return WebResourceResponse(
+                                        mimeType,
+                                        encoding,
+                                        response.code,
+                                        response.message.ifBlank { "OK" },
+                                        responseHeaders,
+                                        responseStream
+                                    )
+                                }
+                            } catch (_: Exception) {
+                                // Fallback gracefully to default WebView loading
+                            }
                         }
                     }
                     return super.shouldInterceptRequest(view, request)

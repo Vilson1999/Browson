@@ -105,11 +105,17 @@ class BrowserRepository(private val context: Context) {
         speedDialDao.deleteSpeedDialById(id)
     }
 
-    // Appearance & Wallpaper Preferences
+    // Appearance, Theme & Wallpaper Preferences
     fun getAccentColor(): Long = prefs.getLong("theme_accent_color", 0xFFE5254AL)
     fun setAccentColor(color: Long) = prefs.edit().putLong("theme_accent_color", color).apply()
 
-    fun getWallpaper(): String = prefs.getString("home_wallpaper", "Minimal") ?: "Minimal"
+    fun getThemeMode(): String = prefs.getString("theme_mode", "system") ?: "system"
+    fun setThemeMode(mode: String) = prefs.edit().putString("theme_mode", mode).apply()
+
+    fun isAmoledDark(): Boolean = prefs.getBoolean("amoled_dark_enabled", false)
+    fun setAmoledDark(enabled: Boolean) = prefs.edit().putBoolean("amoled_dark_enabled", enabled).apply()
+
+    fun getWallpaper(): String = prefs.getString("home_wallpaper", "wp_black_waves") ?: "wp_black_waves"
     fun setWallpaper(wallpaper: String) = prefs.edit().putString("home_wallpaper", wallpaper).apply()
 
     // Privacy & Security Preferences

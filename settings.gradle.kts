@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "OperaWave"
+rootProject.name = "Browson"
 include(":app")

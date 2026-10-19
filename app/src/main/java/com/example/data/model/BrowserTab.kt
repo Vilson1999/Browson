@@ -11,6 +11,7 @@ data class BrowserTab(
     val canGoBack: Boolean = false,
     val canGoForward: Boolean = false,
     val isDesktopMode: Boolean = false,
+    val isIncognito: Boolean = false,
     val faviconUrl: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 ) {
@@ -19,7 +20,7 @@ data class BrowserTab(
     val isSecure: Boolean get() = url.startsWith("https://", ignoreCase = true)
 
     val displayHost: String get() {
-        if (isHome) return "Search or enter address"
+        if (isHome) return if (isIncognito) "Incognito Home" else "Search or enter address"
         return try {
             val uri = java.net.URI(url)
             uri.host?.removePrefix("www.") ?: run {

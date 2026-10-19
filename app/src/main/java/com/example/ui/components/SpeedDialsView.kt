@@ -1,10 +1,12 @@
 package com.example.ui.components
 
+import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,22 +27,15 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,12 +46,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import com.example.R
 import com.example.data.local.entities.BookmarkEntity
 import com.example.data.local.entities.HistoryEntity
 import com.example.data.local.entities.SpeedDialEntity
@@ -66,7 +66,7 @@ sealed interface SelectedItemForAction {
     data class Bookmark(val item: BookmarkEntity) : SelectedItemForAction
 }
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SpeedDialsView(
     speedDials: List<SpeedDialEntity>,
@@ -84,40 +84,18 @@ fun SpeedDialsView(
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
 
-    // Long press selection
+    // Long press selection (shows center popup)
     var selectedItemForMenu by remember { mutableStateOf<SelectedItemForAction?>(null) }
     var itemToEdit by remember { mutableStateOf<SelectedItemForAction?>(null) }
-
-    // Wallpaper background brush
-    val wallpaperBrush = remember(wallpaper) {
-        when (wallpaper) {
-            "Sunset Glow" -> Brush.verticalGradient(
-                listOf(Color(0xFF38151D), Color(0xFF230D14), Color(0xFF13060A))
-            )
-            "Cosmic Nebula" -> Brush.verticalGradient(
-                listOf(Color(0xFF28113E), Color(0xFF160924), Color(0xFF0C0414))
-            )
-            "Ocean Wave" -> Brush.verticalGradient(
-                listOf(Color(0xFF0F3248), Color(0xFF081C28), Color(0xFF030D13))
-            )
-            "Emerald Mist" -> Brush.verticalGradient(
-                listOf(Color(0xFF0E382A), Color(0xFF071F17), Color(0xFF020F0B))
-            )
-            "Dark Obsidian" -> Brush.verticalGradient(
-                listOf(Color(0xFF050508), Color(0xFF020204), Color(0xFF000000))
-            )
-            else -> Brush.verticalGradient(
-                listOf(Color(0xFF131A26), Color(0xFF0E131C), Color(0xFF090D14))
-            )
-        }
-    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(wallpaperBrush)
             .testTag("speed_dials_view")
     ) {
+        // Wallpaper background rendering
+        WallpaperBackground(wallpaper = wallpaper)
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp)
@@ -134,7 +112,6 @@ fun SpeedDialsView(
 
             // Speed Dials Grid (4 per row, ending with '+' Add tile)
             item {
-                val totalItems = speedDials.size + 1
                 val chunked = speedDials.chunked(4)
 
                 Column(
@@ -152,6 +129,7 @@ fun SpeedDialsView(
                             rowDials.forEach { dial ->
                                 SpeedDialTile(
                                     title = dial.title,
+                                    url = dial.url,
                                     bgColor = Color(dial.iconColor),
                                     accentBorder = accentColor,
                                     onClick = { onOpenUrl(dial.url) },
@@ -195,7 +173,7 @@ fun SpeedDialsView(
                 }
             }
 
-            // Bookmarks Section (Rendered with the exact same Speed Dial tile design!)
+            // Bookmarks Section (Rendered with website logo and letter fallback!)
             if (bookmarks.isNotEmpty()) {
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
@@ -231,13 +209,14 @@ fun SpeedDialsView(
                         chunkedBookmarks.forEach { rowBookmarks ->
                             Row(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 6.dp),
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
                                 rowBookmarks.forEach { bookmark ->
                                     SpeedDialTile(
                                         title = bookmark.title,
+                                        url = bookmark.url,
                                         bgColor = Color(0xFF2C3E50),
                                         accentBorder = accentColor,
                                         onClick = { onOpenUrl(bookmark.url) },
@@ -256,87 +235,102 @@ fun SpeedDialsView(
         }
     }
 
-    // Long Press Context Actions (Edit / Delete / Remove)
+    // Long Press Context Popup (Centered on Screen with 2 options: Edit and Delete)
     selectedItemForMenu?.let { selected ->
         val title = when (selected) {
             is SelectedItemForAction.SpeedDial -> selected.item.title
             is SelectedItemForAction.Bookmark -> selected.item.title
         }
+        val url = when (selected) {
+            is SelectedItemForAction.SpeedDial -> selected.item.url
+            is SelectedItemForAction.Bookmark -> selected.item.url
+        }
 
-        ModalBottomSheet(
+        AlertDialog(
             onDismissRequest = { selectedItemForMenu = null },
-            sheetState = rememberModalBottomSheetState(),
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-            ) {
+            title = {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = url,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                // Edit Option
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
+                    // Option 1: Edit
+                    OutlinedButton(
+                        onClick = {
                             itemToEdit = selected
                             selectedItemForMenu = null
-                        }
-                        .padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit",
-                        tint = accentColor
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text(
-                        text = "Edit (Rename & Change Website)",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit",
+                            tint = accentColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Edit",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
 
-                // Delete / Remove Option
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
+                    // Option 2: Delete
+                    Button(
+                        onClick = {
                             when (selected) {
                                 is SelectedItemForAction.SpeedDial -> onDeleteSpeedDial(selected.item.id)
                                 is SelectedItemForAction.Bookmark -> onDeleteBookmark(selected.item.id)
                             }
                             selectedItemForMenu = null
-                        }
-                        .padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text(
-                        text = "Delete / Remove",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Delete",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = Color.White
+                        )
+                    }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { selectedItemForMenu = null }) {
+                    Text("Cancel")
+                }
             }
-        }
+        )
     }
 
-    // Edit Dialog (Rename and Change Website)
+    // Edit Dialog (Rename Title and Change Website URL)
     itemToEdit?.let { selected ->
         var editTitle by remember {
             mutableStateOf(
@@ -463,10 +457,116 @@ fun SpeedDialsView(
     }
 }
 
+@Composable
+fun WallpaperBackground(wallpaper: String) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        when {
+            wallpaper.startsWith("custom:") -> {
+                val uriString = wallpaper.removePrefix("custom:")
+                AsyncImage(
+                    model = Uri.parse(uriString),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.28f))
+                )
+            }
+            wallpaper == "wp_black_waves" -> {
+                Image(
+                    painter = painterResource(id = R.drawable.wp_black_waves),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.15f))
+                )
+            }
+            wallpaper == "wp_purple_waves" -> {
+                Image(
+                    painter = painterResource(id = R.drawable.wp_purple_waves),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.15f))
+                )
+            }
+            wallpaper == "wp_pink_peach" -> {
+                Image(
+                    painter = painterResource(id = R.drawable.wp_pink_peach),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.12f))
+                )
+            }
+            wallpaper == "wp_cyan_blue" -> {
+                Image(
+                    painter = painterResource(id = R.drawable.wp_cyan_blue),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.12f))
+                )
+            }
+            wallpaper == "wp_clean_dark" -> {
+                Image(
+                    painter = painterResource(id = R.drawable.wp_clean_dark),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+            wallpaper == "wp_clean_light" -> {
+                Image(
+                    painter = painterResource(id = R.drawable.wp_clean_light),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.25f))
+                )
+            }
+            else -> {
+                val fallbackBrush = Brush.verticalGradient(
+                    listOf(Color(0xFF131A26), Color(0xFF0E131C), Color(0xFF090D14))
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(fallbackBrush)
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SpeedDialTile(
     title: String,
+    url: String,
     bgColor: Color,
     accentBorder: Color,
     onClick: () -> Unit,
@@ -486,18 +586,14 @@ private fun SpeedDialTile(
             modifier = Modifier
                 .size(54.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(bgColor)
                 .border(width = 1.dp, color = accentBorder.copy(alpha = 0.35f), shape = RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
-            val initial = title.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "W"
-            Text(
-                text = initial,
-                color = Color.White,
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp
-                )
+            WebsiteLogoIcon(
+                url = url,
+                title = title,
+                bgColor = bgColor,
+                modifier = Modifier.fillMaxSize()
             )
         }
 
@@ -514,6 +610,91 @@ private fun SpeedDialTile(
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+@Composable
+fun WebsiteLogoIcon(
+    url: String,
+    title: String,
+    bgColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val domain = remember(url) {
+        try {
+            val uri = Uri.parse(if (url.startsWith("http://") || url.startsWith("https://")) url else "https://$url")
+            val host = uri.host?.removePrefix("www.") ?: url
+            host.ifBlank { url }
+        } catch (_: Exception) {
+            url
+        }
+    }
+
+    val faviconUrl = remember(domain) {
+        if (domain.isNotBlank() && !domain.startsWith("about:")) {
+            "https://www.google.com/s2/favicons?domain=$domain&sz=128"
+        } else null
+    }
+
+    val initial = remember(title, domain) {
+        (title.ifBlank { domain }).trim().firstOrNull()?.uppercaseChar()?.toString() ?: "W"
+    }
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(bgColor),
+        contentAlignment = Alignment.Center
+    ) {
+        if (faviconUrl != null) {
+            SubcomposeAsyncImage(
+                model = faviconUrl,
+                contentDescription = title,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(10.dp),
+                contentScale = ContentScale.Fit,
+                loading = {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = initial,
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 22.sp
+                            )
+                        )
+                    }
+                },
+                error = {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = initial,
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 22.sp
+                            )
+                        )
+                    }
+                }
+            )
+        } else {
+            Text(
+                text = initial,
+                color = Color.White,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp
+                )
+            )
+        }
     }
 }
 

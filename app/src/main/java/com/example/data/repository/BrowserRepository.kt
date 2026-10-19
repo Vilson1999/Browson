@@ -115,18 +115,28 @@ class BrowserRepository(private val context: Context) {
     fun isAmoledDark(): Boolean = prefs.getBoolean("amoled_dark_enabled", false)
     fun setAmoledDark(enabled: Boolean) = prefs.edit().putBoolean("amoled_dark_enabled", enabled).apply()
 
-    fun getWallpaper(): String = prefs.getString("home_wallpaper", "wp_black_waves") ?: "wp_black_waves"
+    fun getWallpaper(): String = prefs.getString("home_wallpaper", "wp_system") ?: "wp_system"
     fun setWallpaper(wallpaper: String) = prefs.edit().putString("home_wallpaper", wallpaper).apply()
 
     // Privacy & Security Preferences
     fun isAdBlockerEnabled(): Boolean = prefs.getBoolean("ublock_ad_blocker_enabled", true)
     fun setAdBlockerEnabled(enabled: Boolean) = prefs.edit().putBoolean("ublock_ad_blocker_enabled", enabled).apply()
 
+    fun getAdBlockerMode(): String = prefs.getString("ad_blocker_mode", "normal") ?: "normal"
+    fun setAdBlockerMode(mode: String) = prefs.edit().putString("ad_blocker_mode", mode).apply()
+
+    fun isSecureDnsEnabled(): Boolean = prefs.getBoolean("secure_dns_enabled", true)
+    fun setSecureDnsEnabled(enabled: Boolean) = prefs.edit().putBoolean("secure_dns_enabled", enabled).apply()
+
     fun getSelectedDns(): String = prefs.getString("selected_dns_provider", "Cloudflare (1.1.1.1)") ?: "Cloudflare (1.1.1.1)"
     fun setSelectedDns(dns: String) = prefs.edit().putString("selected_dns_provider", dns).apply()
 
     fun getCustomDns(): String = prefs.getString("custom_dns_address", "") ?: ""
     fun setCustomDns(customDns: String) = prefs.edit().putString("custom_dns_address", customDns).apply()
+
+    // Appearance Preferences
+    fun getAnimationScale(): Float = prefs.getFloat("animation_scale", 1.0f)
+    fun setAnimationScale(scale: Float) = prefs.edit().putFloat("animation_scale", scale).apply()
 
     // Toolbar Customization Persistence
     private fun loadToolbarActions(): List<ToolbarActionItem> {

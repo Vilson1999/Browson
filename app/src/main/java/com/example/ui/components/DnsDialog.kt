@@ -1,7 +1,6 @@
 package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,19 +13,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,31 +39,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.data.dns.DnsTestResult
 
 @Composable
 fun DnsDialog(
+    isSecureDnsEnabled: Boolean,
     currentDns: String,
     customDns: String = "",
-    dnsTestResult: DnsTestResult? = null,
-    onTestDns: () -> Unit = {},
+    onToggleSecureDns: (Boolean) -> Unit,
     onSelectDns: (String) -> Unit,
     onSaveCustomDns: (String) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val providers = listOf(
-        "Google (8.8.8.8)",
-        "Cloudflare (1.1.1.1)",
-        "Quad9 (9.9.9.9)",
-        "Custom DNS",
-        "Default (System DNS)"
+        "Cloudflare (1.1.1.1)" to "1.1.1.1 / 1.0.0.1 (Fast & Private)",
+        "Google (8.8.8.8)" to "8.8.8.8 / 8.8.4.4",
+        "Quad9 (9.9.9.9)" to "9.9.9.9 (Malware blocking)",
+        "AdGuard DNS" to "dns.adguard-dns.com (Ad-blocking DNS)",
+        "Custom DNS" to "Custom DoH URL or IP"
     )
 
-    var isCustomSelected by remember {
-        mutableStateOf(currentDns.startsWith("Custom") || !providers.contains(currentDns))
+    var isCustomSelected by remember(currentDns) {
+        mutableStateOf(currentDns.startsWith("Custom") || !providers.any { it.first == currentDns })
     }
-    var customInput by remember {
+    var customInput by remember(customDns, currentDns) {
         mutableStateOf(
             if (currentDns.startsWith("Custom: ")) currentDns.removePrefix("Custom: ") else customDns
         )
@@ -81,154 +79,138 @@ fun DnsDialog(
         },
         title = {
             Text(
-                "Secure DNS Configuration",
+                "Secure DNS Provider",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
         },
         text = {
             Column {
-                Text(
-                    text = "Encrypted DNS-over-HTTPS resolves domain names securely and bypasses ISP tampering:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Live DNS Status Card
+                // Secure DNS ON / OFF Toggle
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (dnsTestResult?.isSuccess == true) {
-                            Color(0xFF10B981).copy(alpha = 0.12f)
+                        containerColor = if (isSecureDnsEnabled) {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
                         } else {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         }
-                    ),
-                    border = BorderStroke(
-                        1.dp,
-                        if (dnsTestResult?.isSuccess == true) Color(0xFF10B981).copy(alpha = 0.5f)
-                        else MaterialTheme.colorScheme.outlineVariant
                     )
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (dnsTestResult?.isSuccess == true) Icons.Default.CheckCircle else Icons.Default.Speed,
-                                contentDescription = null,
-                                tint = if (dnsTestResult?.isSuccess == true) Color(0xFF10B981) else MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (dnsTestResult?.isSuccess == true) "DNS Active & Working" else "Active: $currentDns",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = if (dnsTestResult?.isSuccess == true) Color(0xFF047857) else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        if (dnsTestResult != null) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Latency: ${dnsTestResult.latencyMs} ms • IP: ${dnsTestResult.resolvedIp}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = onTestDns,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Speed,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Test DNS Connection")
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Provider List
-                providers.forEach { provider ->
-                    val isSelected = if (provider == "Custom DNS") {
-                        isCustomSelected
-                    } else {
-                        !isCustomSelected && (provider == currentDns)
-                    }
-
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
-                                if (provider == "Custom DNS") {
-                                    isCustomSelected = true
-                                } else {
-                                    isCustomSelected = false
-                                    onSelectDns(provider)
-                                }
-                            }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        RadioButton(
-                            selected = isSelected,
-                            onClick = {
-                                if (provider == "Custom DNS") {
-                                    isCustomSelected = true
-                                } else {
-                                    isCustomSelected = false
-                                    onSelectDns(provider)
-                                }
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = provider,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Secure DNS",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (isSecureDnsEnabled) "Encrypted DNS-over-HTTPS active" else "Turned off (Using system DNS)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isSecureDnsEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = isSecureDnsEnabled,
+                            onCheckedChange = { onToggleSecureDns(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary
+                            )
                         )
                     }
                 }
 
-                AnimatedVisibility(visible = isCustomSelected) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Move all DNS options INSIDE this option (visible when toggle is ON)
+                AnimatedVisibility(visible = isSecureDnsEnabled) {
                     Column {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = customInput,
-                            onValueChange = { customInput = it },
-                            label = { Text("Custom DNS IP / DoH URL") },
-                            placeholder = { Text("e.g. 94.140.14.14 or dns.google") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
+                        Text(
+                            text = "Choose Secure DNS provider:",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = {
-                                val trimmed = customInput.trim()
-                                if (trimmed.isNotEmpty()) {
-                                    onSaveCustomDns(trimmed)
-                                    onSelectDns("Custom: $trimmed")
+
+                        providers.forEach { (name, desc) ->
+                            val isSelected = if (name == "Custom DNS") {
+                                isCustomSelected
+                            } else {
+                                !isCustomSelected && currentDns == name
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (name == "Custom DNS") {
+                                            isCustomSelected = true
+                                        } else {
+                                            isCustomSelected = false
+                                            onSelectDns(name)
+                                        }
+                                    }
+                                    .padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = {
+                                        if (name == "Custom DNS") {
+                                            isCustomSelected = true
+                                        } else {
+                                            isCustomSelected = false
+                                            onSelectDns(name)
+                                        }
+                                    },
+                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = name,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = desc,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                            },
-                            enabled = customInput.isNotBlank(),
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Text("Apply Custom DNS")
+                            }
+                        }
+
+                        if (isCustomSelected) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = customInput,
+                                onValueChange = {
+                                    customInput = it
+                                    onSaveCustomDns(it)
+                                    if (it.isNotBlank()) onSelectDns("Custom: $it")
+                                },
+                                label = { Text("Custom DNS IP or DoH URL") },
+                                placeholder = { Text("e.g. 1.1.1.1 or https://...") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            )
                         }
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
+            Button(onClick = onDismiss) {
+                Text("Done")
             }
         }
     )

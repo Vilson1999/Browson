@@ -41,7 +41,7 @@ import java.io.File
 private const val DESKTOP_USER_AGENT =
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 
-private val UBLOCK_AD_DOMAINS = listOf(
+private val NORMAL_AD_DOMAINS = listOf(
     "doubleclick.net",
     "googleads.g.doubleclick.net",
     "googlesyndication.com",
@@ -50,7 +50,6 @@ private val UBLOCK_AD_DOMAINS = listOf(
     "criteo.com",
     "outbrain.com",
     "taboola.com",
-    "scorecardresearch.com",
     "adroll.com",
     "amazon-adsystem.com",
     "rubiconproject.com",
@@ -62,7 +61,55 @@ private val UBLOCK_AD_DOMAINS = listOf(
     "casalemedia.com",
     "moatads.com",
     "yieldmo.com",
-    "advertising.com"
+    "advertising.com",
+    "applovin.com",
+    "unityads.unity3d.com",
+    "vungle.com",
+    "inmobi.com",
+    "adcolony.com"
+)
+
+private val SOCIAL_AND_THIRD_PARTY_DOMAINS = listOf(
+    "connect.facebook.net",
+    "facebook.com/tr",
+    "pixel.facebook.com",
+    "platform.twitter.com",
+    "analytics.twitter.com",
+    "ads-twitter.com",
+    "analytics.tiktok.com",
+    "licdn.com",
+    "linkedin.com/px",
+    "scorecardresearch.com",
+    "criteo.com",
+    "adnxs.com",
+    "outbrain.com",
+    "taboola.com",
+    "moatads.com",
+    "adroll.com",
+    "quantserve.com",
+    "sharethis.com",
+    "addthis.com"
+)
+
+private val EXTREME_TRACKER_DOMAINS = listOf(
+    "google-analytics.com",
+    "googletagmanager.com",
+    "hotjar.com",
+    "segment.io",
+    "mixpanel.com",
+    "clarity.ms",
+    "mc.yandex.ru",
+    "yandex.st",
+    "branch.io",
+    "appsflyer.com",
+    "adjust.com",
+    "amplitude.com",
+    "chartbeat.com",
+    "newrelic.com",
+    "fullstory.com",
+    "mouseflow.com",
+    "statcounter.com",
+    "crazyegg.com"
 )
 
 private const val UBLOCK_COSMETIC_CSS = """
@@ -160,18 +207,46 @@ fun BrowserWebView(
                     if (uiState.isAdBlockerEnabled) {
                         val host = request?.url?.host?.lowercase() ?: ""
                         val urlStr = request?.url?.toString()?.lowercase() ?: ""
-                        if (UBLOCK_AD_DOMAINS.any { host.contains(it) } ||
-                            urlStr.contains("/pagead/") ||
-                            urlStr.contains("&ad_type=") ||
-                            urlStr.contains("doubleclick.net")
-                        ) {
+                        val mode = uiState.adBlockerMode
+
+                        val shouldBlock = when (mode) {
+                            "balance" -> {
+                                // Balance: Block only social or third-party tracking ads
+                                SOCIAL_AND_THIRD_PARTY_DOMAINS.any { host.contains(it) } ||
+                                    urlStr.contains("/tracking") ||
+                                    urlStr.contains("/pixel") ||
+                                    urlStr.contains("facebook.com/tr") ||
+                                    urlStr.contains("platform.twitter.com")
+                            }
+                            "extreme" -> {
+                                // Extreme: Block all ads + social + all trackers & analytics
+                                NORMAL_AD_DOMAINS.any { host.contains(it) } ||
+                                    SOCIAL_AND_THIRD_PARTY_DOMAINS.any { host.contains(it) } ||
+                                    EXTREME_TRACKER_DOMAINS.any { host.contains(it) } ||
+                                    urlStr.contains("/pagead/") ||
+                                    urlStr.contains("&ad_type=") ||
+                                    urlStr.contains("doubleclick.net") ||
+                                    urlStr.contains("google-analytics") ||
+                                    urlStr.contains("googletagmanager")
+                            }
+                            else -> {
+                                // Normal: Blocks normal ads
+                                NORMAL_AD_DOMAINS.any { host.contains(it) } ||
+                                    urlStr.contains("/pagead/") ||
+                                    urlStr.contains("&ad_type=") ||
+                                    urlStr.contains("doubleclick.net") ||
+                                    urlStr.contains("googlesyndication")
+                            }
+                        }
+
+                        if (shouldBlock) {
                             // Block ad and tracking requests with empty response
                             return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0)))
                         }
                     }
 
                     // Secure DNS Over HTTPS Resolution & Fetching
-                    if (uiState.selectedDns != "Default (System DNS)" && request != null && request.method.equals("GET", ignoreCase = true)) {
+                    if (uiState.isSecureDnsEnabled && uiState.selectedDns != "Default (System DNS)" && request != null && request.method.equals("GET", ignoreCase = true)) {
                         val urlString = request.url.toString()
                         if (urlString.startsWith("http://") || urlString.startsWith("https://")) {
                             try {

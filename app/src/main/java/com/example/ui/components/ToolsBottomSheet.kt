@@ -1,7 +1,8 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,8 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,7 +26,6 @@ import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.HideImage
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Refresh
@@ -49,7 +47,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -72,6 +69,7 @@ fun ToolsBottomSheet(
     activeTab: BrowserTab,
     isFullScreen: Boolean,
     isAdBlockerEnabled: Boolean,
+    isSecureDnsEnabled: Boolean = true,
     isBlockImagesEnabled: Boolean,
     isNightModeEnabled: Boolean,
     isBookmarked: Boolean,
@@ -81,12 +79,14 @@ fun ToolsBottomSheet(
     onSavePage: () -> Unit,
     onPrintPdf: () -> Unit,
     onAdBlocker: () -> Unit,
+    onAdBlockerSettings: () -> Unit = {},
     onDesktop: () -> Unit,
     onScreenshot: () -> Unit,
     onBlockImages: () -> Unit,
     onBookmark: () -> Unit,
     onDownloadVideo: () -> Unit,
-    onDns: () -> Unit,
+    onToggleDns: () -> Unit,
+    onDnsSettings: () -> Unit = {},
     onOpenWith: () -> Unit,
     onShareUrl: () -> Unit,
     onCopyUrl: () -> Unit,
@@ -97,6 +97,7 @@ fun ToolsBottomSheet(
     onExit: () -> Unit,
     onTabs: () -> Unit,
     onSettings: () -> Unit,
+    onOpenSetting: (String) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
@@ -202,30 +203,50 @@ fun ToolsBottomSheet(
                         title = "Full screen",
                         isActive = isFullScreen,
                         onClick = onFullScreen,
+                        onLongClick = {
+                            onOpenSetting("appearance")
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     ToolItem(
                         icon = Icons.Default.Translate,
                         title = "Translate",
                         onClick = onTranslate,
+                        onLongClick = {
+                            onSettings()
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     ToolItem(
                         icon = Icons.Default.FindInPage,
                         title = "Find in page",
                         onClick = onFindInPage,
+                        onLongClick = {
+                            onSettings()
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     ToolItem(
                         icon = Icons.Default.SaveAlt,
                         title = "Save page",
                         onClick = onSavePage,
+                        onLongClick = {
+                            onSettings()
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     ToolItem(
                         icon = Icons.Default.Print,
                         title = "Print / PDF",
                         onClick = onPrintPdf,
+                        onLongClick = {
+                            onSettings()
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -236,10 +257,14 @@ fun ToolsBottomSheet(
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     ToolItem(
-                        icon = Icons.Default.Security,
+                        icon = if (isAdBlockerEnabled) Icons.Default.VerifiedUser else Icons.Default.Security,
                         title = "Ad blocker",
                         isActive = isAdBlockerEnabled,
                         onClick = onAdBlocker,
+                        onLongClick = {
+                            onAdBlockerSettings()
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     ToolItem(
@@ -247,12 +272,20 @@ fun ToolsBottomSheet(
                         title = "Desktop",
                         isActive = activeTab.isDesktopMode,
                         onClick = onDesktop,
+                        onLongClick = {
+                            onSettings()
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     ToolItem(
                         icon = Icons.Default.CropFree,
                         title = "Screenshot",
                         onClick = onScreenshot,
+                        onLongClick = {
+                            onSettings()
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     ToolItem(
@@ -260,6 +293,10 @@ fun ToolsBottomSheet(
                         title = "Block images",
                         isActive = isBlockImagesEnabled,
                         onClick = onBlockImages,
+                        onLongClick = {
+                            onOpenSetting("privacy")
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     ToolItem(
@@ -267,6 +304,10 @@ fun ToolsBottomSheet(
                         title = "Bookmark",
                         isActive = isBookmarked,
                         onClick = onBookmark,
+                        onLongClick = {
+                            onOpenSetting("start_page")
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -280,30 +321,52 @@ fun ToolsBottomSheet(
                         icon = Icons.Default.DownloadForOffline,
                         title = "Download\nVideo",
                         onClick = onDownloadVideo,
+                        onLongClick = {
+                            onSettings()
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
+                    // DNS Icon: Click = toggle on/off immediately (no popup!). Long press = open DNS setting!
                     ToolItem(
                         icon = Icons.Default.VpnKey,
-                        title = "DNS",
-                        onClick = onDns,
+                        title = if (isSecureDnsEnabled) "DNS: On" else "DNS: Off",
+                        isActive = isSecureDnsEnabled,
+                        onClick = onToggleDns,
+                        onLongClick = {
+                            onDnsSettings()
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     ToolItem(
                         icon = Icons.AutoMirrored.Filled.OpenInNew,
                         title = "Open with",
                         onClick = onOpenWith,
+                        onLongClick = {
+                            onSettings()
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     ToolItem(
                         icon = Icons.Default.Share,
                         title = "Share URL",
                         onClick = onShareUrl,
+                        onLongClick = {
+                            onSettings()
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     ToolItem(
                         icon = Icons.Default.ContentCopy,
                         title = "Copy URL",
                         onClick = onCopyUrl,
+                        onLongClick = {
+                            onSettings()
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -391,12 +454,14 @@ fun ToolsBottomSheet(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ToolItem(
     icon: ImageVector,
     title: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
     isActive: Boolean = false
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -407,7 +472,10 @@ private fun ToolItem(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .background(bg)
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(vertical = 8.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center

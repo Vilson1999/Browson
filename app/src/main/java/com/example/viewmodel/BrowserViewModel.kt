@@ -51,19 +51,22 @@ data class BrowserUiState(
     val isFindInPageOpen: Boolean = false,
     val findInPageQuery: String = "",
     val findInPageMatchesCount: Int = 0,
-    val findInPageCurrentIndex: Int = 0,
     val isAdBlockerEnabled: Boolean = true,
+    val adBlockerMode: String = "normal", // "normal", "balance", "extreme"
+    val isAdBlockerDialogOpen: Boolean = false,
     val isBlockImagesEnabled: Boolean = false,
     val isNightModeEnabled: Boolean = false,
     val isDnsDialogOpen: Boolean = false,
+    val isSecureDnsEnabled: Boolean = true,
     val selectedDns: String = "Cloudflare (1.1.1.1)",
     val customDns: String = "",
+    val animationScale: Float = 1.0f,
     val isSettingsOpen: Boolean = false,
     val activeSettingsSection: String? = null,
     val accentColor: Long = 0xFFE5254AL,
     val themeMode: String = "system",
     val isAmoledDark: Boolean = false,
-    val wallpaper: String = "wp_black_waves",
+    val wallpaper: String = "wp_system",
     val toastMessage: String? = null
 ) {
     val activeTab: BrowserTab
@@ -83,8 +86,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             isAmoledDark = repository.isAmoledDark(),
             wallpaper = repository.getWallpaper(),
             isAdBlockerEnabled = repository.isAdBlockerEnabled(),
+            adBlockerMode = repository.getAdBlockerMode(),
+            isSecureDnsEnabled = repository.isSecureDnsEnabled(),
             selectedDns = repository.getSelectedDns(),
-            customDns = repository.getCustomDns()
+            customDns = repository.getCustomDns(),
+            animationScale = repository.getAnimationScale()
         )
     )
     val uiState: StateFlow<BrowserUiState> = _uiState.asStateFlow()
@@ -462,37 +468,69 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         showToast(if (night) "Night mode on" else "Night mode off")
     }
 
-    private val _dnsTestResult = MutableStateFlow<com.example.data.dns.DnsTestResult?>(null)
-    val dnsTestResult: StateFlow<com.example.data.dns.DnsTestResult?> = _dnsTestResult.asStateFlow()
+    fun toggleSecureDns() {
+        val next = !_uiState.value.isSecureDnsEnabled
+        setSecureDnsEnabled(next)
+    }
+
+    fun setSecureDnsEnabled(enabled: Boolean) {
+        repository.setSecureDnsEnabled(enabled)
+        _uiState.value = _uiState.value.copy(isSecureDnsEnabled = enabled)
+        val providerName = _uiState.value.selectedDns.substringBefore(" (")
+        showToast(if (enabled) "Secure DNS on ($providerName)" else "Secure DNS off (System default)")
+    }
 
     fun setDnsDialogOpen(open: Boolean) {
         _uiState.value = _uiState.value.copy(isDnsDialogOpen = open, isToolsMenuOpen = false)
-        if (open) {
-            testCurrentDns()
-        }
     }
 
     fun selectDns(dns: String) {
         repository.setSelectedDns(dns)
         _uiState.value = _uiState.value.copy(selectedDns = dns)
         showToast("DNS set to $dns")
-        testCurrentDns()
     }
 
     fun setCustomDns(customDns: String) {
         repository.setCustomDns(customDns)
         _uiState.value = _uiState.value.copy(customDns = customDns)
-        testCurrentDns()
     }
 
-    fun testCurrentDns() {
-        viewModelScope.launch {
-            val res = com.example.data.dns.SecureDnsResolver.testDns(
-                _uiState.value.selectedDns,
-                _uiState.value.customDns
-            )
-            _dnsTestResult.value = res
+    // Ad Blocker Options
+    fun setAdBlockerMode(mode: String) {
+        repository.setAdBlockerMode(mode)
+        _uiState.value = _uiState.value.copy(adBlockerMode = mode)
+        val modeTitle = when (mode) {
+            "balance" -> "Balance"
+            "extreme" -> "Extreme"
+            else -> "Normal"
         }
+        showToast("Ad Blocker: $modeTitle")
+    }
+
+    fun setAdBlockerDialogOpen(open: Boolean) {
+        _uiState.value = _uiState.value.copy(isAdBlockerDialogOpen = open, isToolsMenuOpen = false)
+    }
+
+    // Animations Scale (1x / 0.5x)
+    fun setAnimationScale(scale: Float) {
+        val clamped = if (scale <= 0.75f) 0.5f else 1.0f
+        repository.setAnimationScale(clamped)
+        _uiState.value = _uiState.value.copy(animationScale = clamped)
+        showToast(if (clamped == 1.0f) "Animations set to 1.0x" else "Animations set to 0.5x")
+    }
+
+    fun toggleAnimationScale() {
+        val next = if (_uiState.value.animationScale == 1.0f) 0.5f else 1.0f
+        setAnimationScale(next)
+    }
+
+    fun openSettingsSection(section: String) {
+        _uiState.value = _uiState.value.copy(
+            isSettingsOpen = true,
+            activeSettingsSection = section,
+            isToolsMenuOpen = false,
+            isTabSwitcherOpen = false
+        )
     }
 
     fun translatePage() {

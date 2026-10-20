@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -72,7 +75,11 @@ fun SpeedDialsView(
     speedDials: List<SpeedDialEntity>,
     bookmarks: List<BookmarkEntity>,
     recentHistory: List<HistoryEntity> = emptyList(),
+    showSpeedDials: Boolean = true,
+    showBookmarks: Boolean = true,
+    showRecent: Boolean = true,
     wallpaper: String,
+    themeMode: String = "system",
     accentColor: Color,
     onOpenUrl: (String) -> Unit,
     onAddSpeedDial: (title: String, url: String, color: Long) -> Unit,
@@ -94,21 +101,22 @@ fun SpeedDialsView(
             .testTag("speed_dials_view")
     ) {
         // Wallpaper background rendering
-        WallpaperBackground(wallpaper = wallpaper)
+        WallpaperBackground(wallpaper = wallpaper, themeMode = themeMode)
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp)
         ) {
-            // Speed Dials Section Title
-            item {
-                Text(
-                    text = "Speed Dials",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                )
-            }
+            // Speed Dials Section (Controlled by showSpeedDials toggle)
+            if (showSpeedDials) {
+                item {
+                    Text(
+                        text = "Speed Dials",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                    )
+                }
 
             // Speed Dials Grid (4 per row, ending with '+' Add tile)
             item {
@@ -172,9 +180,10 @@ fun SpeedDialsView(
                     }
                 }
             }
+        }
 
-            // Bookmarks Section (Rendered with website logo and letter fallback!)
-            if (bookmarks.isNotEmpty()) {
+            // Bookmarks Section (Controlled by showBookmarks toggle)
+            if (showBookmarks && bookmarks.isNotEmpty()) {
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
                     Row(
@@ -228,6 +237,98 @@ fun SpeedDialsView(
                                     Spacer(modifier = Modifier.weight(1f))
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            // Recent Section (Controlled by showRecent toggle: recently visited websites)
+            if (showRecent && recentHistory.isNotEmpty()) {
+                val distinctRecent = recentHistory
+                    .filter { !it.url.startsWith("about:") && it.url.isNotBlank() }
+                    .distinctBy { it.url }
+                    .take(8)
+
+                if (distinctRecent.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.History,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Recent",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    item {
+                        val chunkedRecent = distinctRecent.chunked(4)
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp)
+                        ) {
+                            chunkedRecent.forEach { rowRecent ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    rowRecent.forEach { historyItem ->
+                                        SpeedDialTile(
+                                            title = historyItem.title.ifBlank { historyItem.url },
+                                            url = historyItem.url,
+                                            bgColor = Color(0xFF1E293B),
+                                            accentBorder = accentColor,
+                                            onClick = { onOpenUrl(historyItem.url) },
+                                            onLongClick = { onOpenUrl(historyItem.url) },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    for (i in 0 until (4 - rowRecent.size)) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If all sections are off or empty, show a clean indicator
+            if (!showSpeedDials && (!showBookmarks || bookmarks.isEmpty()) && (!showRecent || recentHistory.isEmpty())) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 80.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0x66000000)
+                        ) {
+                            Text(
+                                text = "Start page customized\nEnable Speed Dials, Bookmarks, or Recent in Settings",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White.copy(alpha = 0.8f),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)
+                            )
                         }
                     }
                 }
@@ -458,7 +559,17 @@ fun SpeedDialsView(
 }
 
 @Composable
-fun WallpaperBackground(wallpaper: String) {
+fun WallpaperBackground(
+    wallpaper: String,
+    themeMode: String = "system"
+) {
+    val systemDark = isSystemInDarkTheme()
+    val isDark = when (themeMode.lowercase()) {
+        "light" -> false
+        "dark" -> true
+        else -> systemDark
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             wallpaper.startsWith("custom:") -> {
@@ -474,6 +585,22 @@ fun WallpaperBackground(wallpaper: String) {
                         .fillMaxSize()
                         .background(Color.Black.copy(alpha = 0.28f))
                 )
+            }
+            wallpaper == "wp_system" || wallpaper == "wp_clean_dark" || wallpaper == "wp_clean_light" -> {
+                val resId = if (isDark) R.drawable.wp_clean_dark else R.drawable.wp_clean_light
+                Image(
+                    painter = painterResource(id = resId),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                if (!isDark) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.15f))
+                    )
+                }
             }
             wallpaper == "wp_black_waves" -> {
                 Image(
@@ -527,35 +654,13 @@ fun WallpaperBackground(wallpaper: String) {
                         .background(Color.Black.copy(alpha = 0.12f))
                 )
             }
-            wallpaper == "wp_clean_dark" -> {
-                Image(
-                    painter = painterResource(id = R.drawable.wp_clean_dark),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            }
-            wallpaper == "wp_clean_light" -> {
-                Image(
-                    painter = painterResource(id = R.drawable.wp_clean_light),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.25f))
-                )
-            }
             else -> {
-                val fallbackBrush = Brush.verticalGradient(
-                    listOf(Color(0xFF131A26), Color(0xFF0E131C), Color(0xFF090D14))
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(fallbackBrush)
+                val resId = if (isDark) R.drawable.wp_clean_dark else R.drawable.wp_clean_light
+                Image(
+                    painter = painterResource(id = resId),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
             }
         }

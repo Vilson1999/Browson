@@ -43,7 +43,7 @@ val AD_BLOCKER_MODES = listOf(
     AdBlockerModeOption(
         id = "normal",
         title = "Normal",
-        subtitle = "Blocks normal ads (banners, popups & video ads)"
+        subtitle = "Blocks normal ads"
     ),
     AdBlockerModeOption(
         id = "balance",
@@ -53,7 +53,7 @@ val AD_BLOCKER_MODES = listOf(
     AdBlockerModeOption(
         id = "extreme",
         title = "Extreme",
-        subtitle = "Block all ads (ads, social widgets, trackers & analytics)"
+        subtitle = "Block all ads"
     )
 )
 

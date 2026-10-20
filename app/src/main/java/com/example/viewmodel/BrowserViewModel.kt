@@ -67,6 +67,9 @@ data class BrowserUiState(
     val themeMode: String = "system",
     val isAmoledDark: Boolean = false,
     val wallpaper: String = "wp_system",
+    val showSpeedDials: Boolean = true,
+    val showBookmarks: Boolean = true,
+    val showRecent: Boolean = true,
     val toastMessage: String? = null
 ) {
     val activeTab: BrowserTab
@@ -90,7 +93,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             isSecureDnsEnabled = repository.isSecureDnsEnabled(),
             selectedDns = repository.getSelectedDns(),
             customDns = repository.getCustomDns(),
-            animationScale = repository.getAnimationScale()
+            animationScale = repository.getAnimationScale(),
+            showSpeedDials = repository.isShowSpeedDials(),
+            showBookmarks = repository.isShowBookmarks(),
+            showRecent = repository.isShowRecent()
         )
     )
     val uiState: StateFlow<BrowserUiState> = _uiState.asStateFlow()
@@ -402,6 +408,21 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         repository.setWallpaper(wallpaper)
         _uiState.value = _uiState.value.copy(wallpaper = wallpaper)
         showToast("Home wallpaper updated")
+    }
+
+    fun setShowSpeedDials(enabled: Boolean) {
+        repository.setShowSpeedDials(enabled)
+        _uiState.value = _uiState.value.copy(showSpeedDials = enabled)
+    }
+
+    fun setShowBookmarks(enabled: Boolean) {
+        repository.setShowBookmarks(enabled)
+        _uiState.value = _uiState.value.copy(showBookmarks = enabled)
+    }
+
+    fun setShowRecent(enabled: Boolean) {
+        repository.setShowRecent(enabled)
+        _uiState.value = _uiState.value.copy(showRecent = enabled)
     }
 
     // Tools Menu Actions

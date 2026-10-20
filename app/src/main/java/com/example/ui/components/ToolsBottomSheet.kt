@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -123,60 +124,58 @@ fun ToolsBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
+                    MiniToolIconButton(
+                        icon = Icons.Default.Refresh,
+                        contentDescription = "Reload",
                         onClick = {
                             onReload()
                             onDismiss()
                         },
-                        modifier = Modifier.size(42.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Reload",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                        onLongClick = {
+                            onOpenSetting("appearance")
+                            onDismiss()
+                        }
+                    )
 
-                    IconButton(
+                    MiniToolIconButton(
+                        icon = if (isAdBlockerEnabled) Icons.Default.VerifiedUser else Icons.Outlined.Security,
+                        contentDescription = "Ad blocker",
+                        isActive = isAdBlockerEnabled,
+                        tint = if (isAdBlockerEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         onClick = onAdBlocker,
-                        modifier = Modifier.size(42.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isAdBlockerEnabled) Icons.Default.VerifiedUser else Icons.Outlined.Security,
-                            contentDescription = "Ad blocker",
-                            tint = if (isAdBlockerEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                        onLongClick = {
+                            onAdBlockerSettings()
+                            onDismiss()
+                        }
+                    )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
+                    MiniToolIconButton(
+                        icon = Icons.Default.Tab,
+                        contentDescription = "Tabs",
                         onClick = {
                             onTabs()
                             onDismiss()
                         },
-                        modifier = Modifier.size(42.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Tab,
-                            contentDescription = "Tabs",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                        onLongClick = {
+                            onOpenSetting("appearance")
+                            onDismiss()
+                        }
+                    )
 
-                    IconButton(
+                    MiniToolIconButton(
+                        icon = Icons.Default.Settings,
+                        contentDescription = "Settings",
                         onClick = {
                             onSettings()
                             onDismiss()
                         },
-                        modifier = Modifier.size(42.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                        onLongClick = {
+                            onSettings()
+                            onDismiss()
+                        }
+                    )
                 }
             }
 
@@ -387,70 +386,109 @@ fun ToolsBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
+                MiniToolIconButton(
+                    icon = Icons.Default.Refresh,
+                    contentDescription = "Reload",
+                    size = 44.dp,
                     onClick = {
                         onReload()
                         onDismiss()
                     },
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Reload",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                    onLongClick = {
+                        onOpenSetting("appearance")
+                        onDismiss()
+                    }
+                )
 
-                IconButton(
+                MiniToolIconButton(
+                    icon = Icons.AutoMirrored.Filled.AddToHomeScreen,
+                    contentDescription = "Add to Home / Speed Dial",
+                    size = 44.dp,
                     onClick = onAddShortcut,
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.AddToHomeScreen,
-                        contentDescription = "Add to Home / Speed Dial",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                    onLongClick = {
+                        onOpenSetting("start_page")
+                        onDismiss()
+                    }
+                )
 
-                IconButton(
+                MiniToolIconButton(
+                    icon = Icons.Default.History,
+                    contentDescription = "History",
+                    size = 44.dp,
                     onClick = {
                         onHistory()
                         onDismiss()
                     },
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = "History",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                    onLongClick = {
+                        onOpenSetting("privacy")
+                        onDismiss()
+                    }
+                )
 
-                IconButton(
+                MiniToolIconButton(
+                    icon = Icons.Default.DarkMode,
+                    contentDescription = "Night Mode",
+                    size = 44.dp,
+                    isActive = isNightModeEnabled,
+                    tint = if (isNightModeEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     onClick = onNightMode,
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DarkMode,
-                        contentDescription = "Night Mode",
-                        tint = if (isNightModeEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                    onLongClick = {
+                        onOpenSetting("appearance")
+                        onDismiss()
+                    }
+                )
 
-                IconButton(
+                MiniToolIconButton(
+                    icon = Icons.Default.PowerSettingsNew,
+                    contentDescription = "Exit / Close",
+                    size = 44.dp,
+                    tint = MaterialTheme.colorScheme.error,
                     onClick = onExit,
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PowerSettingsNew,
-                        contentDescription = "Exit / Close",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
+                    onLongClick = {
+                        onSettings()
+                        onDismiss()
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
         }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MiniToolIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    isActive: Boolean = false,
+    tint: Color = MaterialTheme.colorScheme.onSurface,
+    size: androidx.compose.ui.unit.Dp = 42.dp
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val bg = if (isActive) primaryColor.copy(alpha = 0.5f) else Color.Transparent
+    val effectiveTint = if (isActive) primaryColor else tint
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(bg)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = effectiveTint,
+            modifier = Modifier.size(24.dp)
+        )
     }
 }
 
@@ -465,8 +503,8 @@ private fun ToolItem(
     isActive: Boolean = false
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val bg = if (isActive) primaryColor else Color.Transparent
-    val contentColor = if (isActive) Color.White else MaterialTheme.colorScheme.onSurface
+    val bg = if (isActive) primaryColor.copy(alpha = 0.5f) else Color.Transparent
+    val contentColor = if (isActive) primaryColor else MaterialTheme.colorScheme.onSurface
 
     Column(
         modifier = modifier

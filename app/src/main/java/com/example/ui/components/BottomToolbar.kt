@@ -114,8 +114,8 @@ fun BottomToolbar(
 
                     ToolbarActionType.TABS -> {
                         val isActive = isTabSwitcherOpen
-                        val bg = if (isActive) primaryColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                        val contentColor = if (isActive) Color.White else MaterialTheme.colorScheme.onSurface
+                        val bg = Color.Transparent
+                        val contentColor = if (isActive) primaryColor else MaterialTheme.colorScheme.onSurface
 
                         Box(
                             modifier = Modifier
@@ -243,10 +243,10 @@ private fun ToolbarToolCircle(
     testTag: String
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val bg = if (isActive) primaryColor else if (isHome) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    val bg = Color.Transparent
     val tint = when {
         !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-        isActive -> Color.White
+        isActive -> primaryColor
         else -> MaterialTheme.colorScheme.onSurface
     }
 

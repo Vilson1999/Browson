@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.data.model.BrowserTab
+import com.example.ui.components.AdBlockerDialog
 import com.example.ui.components.BookmarksDialog
 import com.example.ui.components.BottomToolbar
 import com.example.ui.components.BrowserWebView
@@ -95,7 +96,6 @@ fun BrowserApp(viewModel: BrowserViewModel) {
     val speedDials by viewModel.speedDials.collectAsState()
     val bookmarks by viewModel.bookmarks.collectAsState()
     val history by viewModel.history.collectAsState()
-    val dnsTestResult by viewModel.dnsTestResult.collectAsState()
 
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
@@ -267,7 +267,12 @@ fun BrowserApp(viewModel: BrowserViewModel) {
                 SpeedDialsView(
                     speedDials = speedDials,
                     bookmarks = bookmarks,
+                    recentHistory = history,
+                    showSpeedDials = uiState.showSpeedDials,
+                    showBookmarks = uiState.showBookmarks,
+                    showRecent = uiState.showRecent,
                     wallpaper = uiState.wallpaper,
+                    themeMode = uiState.themeMode,
                     accentColor = currentAccent,
                     onOpenUrl = { url ->
                         viewModel.submitSearchOrUrl(url)
@@ -333,7 +338,9 @@ fun BrowserApp(viewModel: BrowserViewModel) {
                     onBlockImages = { viewModel.toggleBlockImages() },
                     onBookmark = { viewModel.toggleCurrentBookmark() },
                     onDownloadVideo = { viewModel.downloadVideo() },
-                    onDns = { viewModel.setDnsDialogOpen(true) },
+                    onToggleDns = { viewModel.toggleSecureDns() },
+                    onDnsSettings = { viewModel.setDnsDialogOpen(true) },
+                    onAdBlockerSettings = { viewModel.setAdBlockerDialogOpen(true) },
                     onOpenWith = {
                         if (!activeTab.isHome && activeTab.url.isNotBlank()) {
                             try {
@@ -374,6 +381,7 @@ fun BrowserApp(viewModel: BrowserViewModel) {
                     onExit = { (context as? ComponentActivity)?.finish() },
                     onTabs = { viewModel.setTabSwitcherVisible(true) },
                     onSettings = { viewModel.setSettingsVisible(true) },
+                    onOpenSetting = { section -> viewModel.openSettingsSection(section) },
                     onDismiss = { viewModel.setToolsMenuVisible(false) }
                 )
             }
@@ -447,10 +455,10 @@ fun BrowserApp(viewModel: BrowserViewModel) {
             // DNS Dialog
             if (uiState.isDnsDialogOpen) {
                 DnsDialog(
+                    isSecureDnsEnabled = uiState.isSecureDnsEnabled,
                     currentDns = uiState.selectedDns,
                     customDns = uiState.customDns,
-                    dnsTestResult = dnsTestResult,
-                    onTestDns = { viewModel.testCurrentDns() },
+                    onToggleSecureDns = { enabled -> viewModel.setSecureDnsEnabled(enabled) },
                     onSelectDns = { dns ->
                         viewModel.selectDns(dns)
                     },
@@ -458,6 +466,17 @@ fun BrowserApp(viewModel: BrowserViewModel) {
                         viewModel.setCustomDns(custom)
                     },
                     onDismiss = { viewModel.setDnsDialogOpen(false) }
+                )
+            }
+
+            // Ad Blocker Dialog
+            if (uiState.isAdBlockerDialogOpen) {
+                AdBlockerDialog(
+                    isEnabled = uiState.isAdBlockerEnabled,
+                    currentMode = uiState.adBlockerMode,
+                    onToggleEnabled = { enabled -> viewModel.setAdBlockerEnabled(enabled) },
+                    onSelectMode = { mode -> viewModel.setAdBlockerMode(mode) },
+                    onDismiss = { viewModel.setAdBlockerDialogOpen(false) }
                 )
             }
 
@@ -470,8 +489,14 @@ fun BrowserApp(viewModel: BrowserViewModel) {
                     currentWallpaper = uiState.wallpaper,
                     toolbarActions = toolbarActions,
                     isAdBlockerEnabled = uiState.isAdBlockerEnabled,
+                    adBlockerMode = uiState.adBlockerMode,
+                    isSecureDnsEnabled = uiState.isSecureDnsEnabled,
                     currentDns = uiState.selectedDns,
                     customDns = uiState.customDns,
+                    animationScale = uiState.animationScale,
+                    showSpeedDials = uiState.showSpeedDials,
+                    showBookmarks = uiState.showBookmarks,
+                    showRecent = uiState.showRecent,
                     onSelectAccentColor = { color -> viewModel.setAccentColor(color) },
                     onSelectThemeMode = { mode -> viewModel.setThemeMode(mode) },
                     onToggleAmoledDark = { amoled -> viewModel.setAmoledDark(amoled) },
@@ -479,8 +504,14 @@ fun BrowserApp(viewModel: BrowserViewModel) {
                     onSaveToolbarActions = { updated -> viewModel.updateToolbarActions(updated) },
                     onResetToolbarActions = { viewModel.resetToolbarActions() },
                     onToggleAdBlocker = { enabled -> viewModel.setAdBlockerEnabled(enabled) },
+                    onSelectAdBlockerMode = { mode -> viewModel.setAdBlockerMode(mode) },
+                    onToggleSecureDns = { enabled -> viewModel.setSecureDnsEnabled(enabled) },
                     onSelectDns = { dns -> viewModel.selectDns(dns) },
                     onSaveCustomDns = { custom -> viewModel.setCustomDns(custom) },
+                    onSetAnimationScale = { scale -> viewModel.setAnimationScale(scale) },
+                    onToggleShowSpeedDials = { enabled -> viewModel.setShowSpeedDials(enabled) },
+                    onToggleShowBookmarks = { enabled -> viewModel.setShowBookmarks(enabled) },
+                    onToggleShowRecent = { enabled -> viewModel.setShowRecent(enabled) },
                     onOpenDnsDialog = { viewModel.setDnsDialogOpen(true) },
                     onBack = { viewModel.setSettingsVisible(false) }
                 )

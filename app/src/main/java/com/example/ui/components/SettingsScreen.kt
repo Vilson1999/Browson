@@ -4,11 +4,13 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,9 +38,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ColorLens
@@ -46,6 +50,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
@@ -121,16 +126,16 @@ data class DefaultWallpaperItem(
     val id: String,
     val title: String,
     val drawableResId: Int,
-    val isDark: Boolean
+    val isDark: Boolean,
+    val isSystem: Boolean = false
 )
 
 val DEFAULT_WALLPAPERS = listOf(
+    DefaultWallpaperItem("wp_system", "System", R.drawable.wp_clean_dark, true, isSystem = true),
     DefaultWallpaperItem("wp_black_waves", "Black Waves", R.drawable.wp_black_waves, true),
     DefaultWallpaperItem("wp_purple_waves", "Purple Waves", R.drawable.wp_purple_waves, true),
     DefaultWallpaperItem("wp_pink_peach", "Pink Peach", R.drawable.wp_pink_peach, false),
-    DefaultWallpaperItem("wp_cyan_blue", "Cyan Blue", R.drawable.wp_cyan_blue, false),
-    DefaultWallpaperItem("wp_clean_dark", "Clean Dark", R.drawable.wp_clean_dark, true),
-    DefaultWallpaperItem("wp_clean_light", "Clean Light", R.drawable.wp_clean_light, false)
+    DefaultWallpaperItem("wp_cyan_blue", "Cyan Blue", R.drawable.wp_cyan_blue, false)
 )
 
 data class SettingsMenuItem(
@@ -149,8 +154,14 @@ fun SettingsScreen(
     currentWallpaper: String,
     toolbarActions: List<ToolbarActionItem>,
     isAdBlockerEnabled: Boolean = true,
+    adBlockerMode: String = "normal",
+    isSecureDnsEnabled: Boolean = true,
     currentDns: String = "Cloudflare (1.1.1.1)",
     customDns: String = "",
+    animationScale: Float = 1.0f,
+    showSpeedDials: Boolean = true,
+    showBookmarks: Boolean = true,
+    showRecent: Boolean = true,
     onSelectAccentColor: (Long) -> Unit,
     onSelectThemeMode: (String) -> Unit = {},
     onToggleAmoledDark: (Boolean) -> Unit = {},
@@ -158,8 +169,14 @@ fun SettingsScreen(
     onSaveToolbarActions: (List<ToolbarActionItem>) -> Unit,
     onResetToolbarActions: () -> Unit,
     onToggleAdBlocker: (Boolean) -> Unit = {},
+    onSelectAdBlockerMode: (String) -> Unit = {},
+    onToggleSecureDns: (Boolean) -> Unit = {},
     onSelectDns: (String) -> Unit = {},
     onSaveCustomDns: (String) -> Unit = {},
+    onSetAnimationScale: (Float) -> Unit = {},
+    onToggleShowSpeedDials: (Boolean) -> Unit = {},
+    onToggleShowBookmarks: (Boolean) -> Unit = {},
+    onToggleShowRecent: (Boolean) -> Unit = {},
     onOpenDnsDialog: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -175,7 +192,8 @@ fun SettingsScreen(
             "customize_bottom_toolbar" -> activeSubScreen = "bottom_toolbar"
             "bottom_toolbar" -> activeSubScreen = "appearance"
             "theme" -> activeSubScreen = "appearance"
-            "wallpaper" -> activeSubScreen = "appearance"
+            "wallpaper" -> activeSubScreen = "start_page"
+            "start_page" -> activeSubScreen = null
             null -> onBack()
             else -> activeSubScreen = null
         }
@@ -225,7 +243,8 @@ fun SettingsScreen(
                             "customize_bottom_toolbar" -> activeSubScreen = "bottom_toolbar"
                             "bottom_toolbar" -> activeSubScreen = "appearance"
                             "theme" -> activeSubScreen = "appearance"
-                            "wallpaper" -> activeSubScreen = "appearance"
+                            "wallpaper" -> activeSubScreen = "start_page"
+                            "start_page" -> activeSubScreen = null
                             null -> onBack()
                             else -> activeSubScreen = null
                         }
@@ -254,9 +273,9 @@ fun SettingsScreen(
                         currentAccentColor = currentAccentColor,
                         currentThemeMode = currentThemeMode,
                         isAmoledDark = isAmoledDark,
-                        currentWallpaper = currentWallpaper,
+                        animationScale = animationScale,
+                        onSetAnimationScale = onSetAnimationScale,
                         onNavigateToTheme = { activeSubScreen = "theme" },
-                        onNavigateToWallpaper = { activeSubScreen = "wallpaper" },
                         onNavigateToBottomToolbar = { activeSubScreen = "bottom_toolbar" },
                         onNavigateToCustomizeToolbar = { activeSubScreen = "customize_bottom_toolbar" },
                         onSelectAccentColor = onSelectAccentColor,
@@ -277,6 +296,7 @@ fun SettingsScreen(
                 "wallpaper" -> {
                     WallpaperSettingsView(
                         currentWallpaper = currentWallpaper,
+                        currentThemeMode = currentThemeMode,
                         onSelectWallpaper = onSelectWallpaper,
                         accentColor = accentColor
                     )
@@ -302,7 +322,13 @@ fun SettingsScreen(
                 "start_page" -> {
                     StartPageSettingsView(
                         currentWallpaper = currentWallpaper,
+                        showSpeedDials = showSpeedDials,
+                        showBookmarks = showBookmarks,
+                        showRecent = showRecent,
                         onNavigateToWallpaper = { activeSubScreen = "wallpaper" },
+                        onToggleShowSpeedDials = onToggleShowSpeedDials,
+                        onToggleShowBookmarks = onToggleShowBookmarks,
+                        onToggleShowRecent = onToggleShowRecent,
                         accentColor = accentColor
                     )
                 }
@@ -310,9 +336,13 @@ fun SettingsScreen(
                 "privacy" -> {
                     PrivacySettingsView(
                         isAdBlockerEnabled = isAdBlockerEnabled,
+                        adBlockerMode = adBlockerMode,
+                        isSecureDnsEnabled = isSecureDnsEnabled,
                         currentDns = currentDns,
                         customDns = customDns,
                         onToggleAdBlocker = onToggleAdBlocker,
+                        onSelectAdBlockerMode = onSelectAdBlockerMode,
+                        onToggleSecureDns = onToggleSecureDns,
                         onSelectDns = onSelectDns,
                         onSaveCustomDns = onSaveCustomDns,
                         accentColor = accentColor
@@ -338,8 +368,8 @@ private fun MainSettingsListView(
     onNavigate: (String) -> Unit
 ) {
     val items = listOf(
-        SettingsMenuItem("Appearance", "Theme, wallpaper, colors, bottom toolbar", Icons.Default.Palette, "appearance"),
-        SettingsMenuItem("Start page", "Speed dials, wallpaper", Icons.Default.Home, "start_page"),
+        SettingsMenuItem("Appearance", "Theme, animations, colors, bottom toolbar", Icons.Default.Palette, "appearance"),
+        SettingsMenuItem("Start page", "Wallpaper, speed dial, bookmark, recent", Icons.Default.Home, "start_page"),
         SettingsMenuItem("Privacy & security", "uBlock ad blocker, secure DNS", Icons.Default.Security, "privacy"),
         SettingsMenuItem("Downloads", "Storage and concurrent downloads", Icons.Default.Download, "downloads"),
         SettingsMenuItem("Search", "Default search engine", Icons.Default.Search, "search")
@@ -470,9 +500,9 @@ private fun AppearanceSettingsView(
     currentAccentColor: Long,
     currentThemeMode: String,
     isAmoledDark: Boolean,
-    currentWallpaper: String,
+    animationScale: Float,
+    onSetAnimationScale: (Float) -> Unit,
     onNavigateToTheme: () -> Unit,
-    onNavigateToWallpaper: () -> Unit,
     onNavigateToBottomToolbar: () -> Unit,
     onNavigateToCustomizeToolbar: () -> Unit,
     onSelectAccentColor: (Long) -> Unit,
@@ -556,11 +586,9 @@ private fun AppearanceSettingsView(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 2. Wallpaper Option Card
+            // 2. Animation Menu Option Card
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToWallpaper() },
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -580,7 +608,7 @@ private fun AppearanceSettingsView(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Wallpaper,
+                            imageVector = Icons.Default.AutoAwesome,
                             contentDescription = null,
                             tint = accentColor,
                             modifier = Modifier.size(22.dp)
@@ -591,33 +619,28 @@ private fun AppearanceSettingsView(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Wallpaper",
+                            text = "Animations",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(2.dp))
-                        val wpLabel = when {
-                            currentWallpaper.startsWith("custom:") -> "Custom Device Image"
-                            currentWallpaper == "wp_black_waves" -> "Black Waves"
-                            currentWallpaper == "wp_purple_waves" -> "Purple Waves"
-                            currentWallpaper == "wp_pink_peach" -> "Pink Peach"
-                            currentWallpaper == "wp_cyan_blue" -> "Cyan Blue"
-                            currentWallpaper == "wp_clean_dark" -> "Clean Dark"
-                            currentWallpaper == "wp_clean_light" -> "Clean Light"
-                            else -> currentWallpaper
-                        }
+                        val isNormal = animationScale >= 0.75f
                         Text(
-                            text = wpLabel,
+                            text = if (isNormal) "1x (Normal speed)" else "0.5x (Fast / Power saving)",
                             style = MaterialTheme.typography.bodySmall,
                             color = accentColor
                         )
                     }
 
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Open Wallpaper",
-                        tint = accentColor,
-                        modifier = Modifier.size(20.dp)
+                    Switch(
+                        checked = animationScale >= 0.75f,
+                        onCheckedChange = { isChecked ->
+                            onSetAnimationScale(if (isChecked) 1.0f else 0.5f)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = accentColor
+                        )
                     )
                 }
             }
@@ -952,10 +975,17 @@ private fun ThemeOptionCard(
 @Composable
 private fun WallpaperSettingsView(
     currentWallpaper: String,
+    currentThemeMode: String = "system",
     onSelectWallpaper: (String) -> Unit,
     accentColor: Color
 ) {
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Default, 1 = Choose
+    val systemDark = isSystemInDarkTheme()
+    val isThemeDark = when (currentThemeMode.lowercase()) {
+        "light" -> false
+        "dark" -> true
+        else -> systemDark
+    }
 
     // System file picker for selecting device image
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -1006,7 +1036,12 @@ private fun WallpaperSettingsView(
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(DEFAULT_WALLPAPERS, key = { it.id }) { item ->
-                    val isSelected = (currentWallpaper == item.id)
+                    val isSelected = (currentWallpaper == item.id || (item.id == "wp_system" && (currentWallpaper == "wp_clean_dark" || currentWallpaper == "wp_clean_light")))
+                    val resId = if (item.isSystem) {
+                        if (isThemeDark) R.drawable.wp_clean_dark else R.drawable.wp_clean_light
+                    } else {
+                        item.drawableResId
+                    }
 
                     Card(
                         modifier = Modifier
@@ -1025,11 +1060,35 @@ private fun WallpaperSettingsView(
                                     .aspectRatio(0.72f)
                             ) {
                                 Image(
-                                    painter = painterResource(id = item.drawableResId),
+                                    painter = painterResource(id = resId),
                                     contentDescription = item.title,
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
                                 )
+
+                                if (item.isSystem) {
+                                    // "write Sytem in center and it change according to theme dark or light"
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = if (isThemeDark) Color(0xBB1E293B) else Color(0xDDFFFFFF),
+                                            shadowElevation = 3.dp
+                                        ) {
+                                            Text(
+                                                text = "System",
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 15.sp
+                                                ),
+                                                color = if (isThemeDark) Color.White else Color(0xFF0F172A),
+                                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                                            )
+                                        }
+                                    }
+                                }
 
                                 if (isSelected) {
                                     Box(
@@ -1070,7 +1129,7 @@ private fun WallpaperSettingsView(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = if (item.isDark) "Dark" else "Light",
+                                    text = if (item.isSystem) "Theme adaptive" else if (item.isDark) "Dark" else "Light",
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1494,78 +1553,232 @@ private fun CustomizeBottomToolbarView(
 
 /**
  * Start Page Settings
+ * - Wallpaper Menu: opens "start page > wallpaper >" where all wallpaper options live!
+ * - 3 Content Toggles with On/Off switches:
+ *   1. Speed dial (show/hide speed dials on start page)
+ *   2. Bookmark (show/hide bookmarks on start page)
+ *   3. Recent (show/hide recently visited websites on start page)
  */
 @Composable
 private fun StartPageSettingsView(
     currentWallpaper: String,
+    showSpeedDials: Boolean,
+    showBookmarks: Boolean,
+    showRecent: Boolean,
     onNavigateToWallpaper: () -> Unit,
+    onToggleShowSpeedDials: (Boolean) -> Unit,
+    onToggleShowBookmarks: (Boolean) -> Unit,
+    onToggleShowRecent: (Boolean) -> Unit,
     accentColor: Color
 ) {
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp, vertical = 12.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(imageVector = Icons.Default.Wallpaper, contentDescription = null, tint = accentColor)
-            Spacer(modifier = Modifier.width(10.dp))
+        item {
+            // 1. Wallpaper Menu Option (Start page > Wallpaper >)
             Text(
-                text = "Home Screen Wallpaper",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                text = "Appearance & Background",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onBackground
             )
-        }
+            Spacer(modifier = Modifier.height(8.dp))
 
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Customize your new tab / speed dial home background wallpaper:",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onNavigateToWallpaper() },
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
-        ) {
-            Row(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .clickable { onNavigateToWallpaper() },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
             ) {
-                Box(
+                Row(
                     modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(accentColor.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(imageVector = Icons.Default.Wallpaper, contentDescription = null, tint = accentColor)
-                }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Change Wallpaper",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(accentColor.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Wallpaper,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Wallpaper",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        val wpName = when {
+                            currentWallpaper == "wp_system" -> "System default (Theme adaptive)"
+                            currentWallpaper == "wp_black_waves" -> "Black Waves"
+                            currentWallpaper == "wp_purple_waves" -> "Purple Waves"
+                            currentWallpaper == "wp_pink_peach" -> "Pink Peach"
+                            currentWallpaper == "wp_cyan_blue" -> "Cyan Blue"
+                            currentWallpaper.startsWith("custom:") -> "Custom Device Image"
+                            else -> "Wallpaper gallery"
+                        }
+                        Text(
+                            text = wpName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = accentColor
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Open Wallpaper",
+                        tint = accentColor,
+                        modifier = Modifier.size(20.dp)
                     )
-                    Text(
-                        text = "Choose from Default gallery or files from your device",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
-                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = accentColor)
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 2. Start Page Content Section (3 on/off toggles: Speed dial, Bookmark, Recent)
+            Text(
+                text = "Start Page Content",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Toggle sections to display on your start page:",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Option 1: Speed dial
+                    StartPageToggleRow(
+                        icon = Icons.Default.Apps,
+                        title = "Speed dial",
+                        subtitle = "Show speed dials on the start page",
+                        checked = showSpeedDials,
+                        onCheckedChange = onToggleShowSpeedDials,
+                        accentColor = accentColor
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
+
+                    // Option 2: Bookmark
+                    StartPageToggleRow(
+                        icon = Icons.Default.Bookmark,
+                        title = "Bookmark",
+                        subtitle = "Show saved bookmarks on the start page",
+                        checked = showBookmarks,
+                        onCheckedChange = onToggleShowBookmarks,
+                        accentColor = accentColor
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
+
+                    // Option 3: Recent (which websites recently visited)
+                    StartPageToggleRow(
+                        icon = Icons.Default.History,
+                        title = "Recent",
+                        subtitle = "Show recently visited websites on the start page",
+                        checked = showRecent,
+                        onCheckedChange = onToggleShowRecent,
+                        accentColor = accentColor
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+}
+
+@Composable
+private fun StartPageToggleRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    accentColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(if (checked) accentColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (checked) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = accentColor
+            )
+        )
     }
 }
 
@@ -1575,19 +1788,29 @@ private fun StartPageSettingsView(
 @Composable
 private fun PrivacySettingsView(
     isAdBlockerEnabled: Boolean,
+    adBlockerMode: String = "normal",
+    isSecureDnsEnabled: Boolean = true,
     currentDns: String,
     customDns: String,
     onToggleAdBlocker: (Boolean) -> Unit,
+    onSelectAdBlockerMode: (String) -> Unit = {},
+    onToggleSecureDns: (Boolean) -> Unit = {},
     onSelectDns: (String) -> Unit,
     onSaveCustomDns: (String) -> Unit,
     accentColor: Color
 ) {
+    val adBlockerModes = listOf(
+        Triple("normal", "Normal", "Blocks normal ads"),
+        Triple("balance", "Balance", "Block only social or third party ads"),
+        Triple("extreme", "Extreme", "Block all ads")
+    )
+
     val dnsProviders = listOf(
+        "Cloudflare (1.1.1.1)" to "1.1.1.1 / 1.0.0.1 (Fast & Private)",
         "Google (8.8.8.8)" to "8.8.8.8 / 8.8.4.4",
-        "Cloudflare (1.1.1.1)" to "1.1.1.1 / 1.0.0.1",
-        "Quad9 (9.9.9.9)" to "9.9.9.9 / 149.112.112.112",
-        "Custom DNS" to "Custom IP or DNS over HTTPS",
-        "Default (System DNS)" to "Network provider default"
+        "Quad9 (9.9.9.9)" to "9.9.9.9 (Malware blocking)",
+        "AdGuard DNS" to "dns.adguard-dns.com (Ad-blocking DNS)",
+        "Custom DNS" to "Custom IP or DNS over HTTPS"
     )
 
     var isCustomMode by remember(currentDns) {
@@ -1647,8 +1870,13 @@ private fun PrivacySettingsView(
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+                            val modeLabel = when (adBlockerMode) {
+                                "balance" -> "Balance"
+                                "extreme" -> "Extreme"
+                                else -> "Normal"
+                            }
                             Text(
-                                text = if (isAdBlockerEnabled) "Active • Blocking ads & trackers" else "Paused",
+                                text = if (isAdBlockerEnabled) "Active • $modeLabel Mode" else "Paused",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (isAdBlockerEnabled) accentColor else MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1663,6 +1891,53 @@ private fun PrivacySettingsView(
                             )
                         )
                     }
+
+                    // 3 options inside Ad Blocker menu
+                    AnimatedVisibility(visible = isAdBlockerEnabled) {
+                        Column {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = "Protection Mode:",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            adBlockerModes.forEach { (modeId, modeTitle, modeSubtitle) ->
+                                val isSelected = adBlockerMode == modeId
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onSelectAdBlockerMode(modeId) }
+                                        .padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = { onSelectAdBlockerMode(modeId) },
+                                        colors = RadioButtonDefaults.colors(selectedColor = accentColor)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            text = modeTitle,
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = modeSubtitle,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1673,6 +1948,12 @@ private fun PrivacySettingsView(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ),
+                border = CardDefaults.outlinedCardBorder().copy(
+                    brush = androidx.compose.ui.graphics.SolidColor(
+                        if (isSecureDnsEnabled) accentColor.copy(alpha = 0.5f) else Color.Transparent
+                    ),
+                    width = 1.dp
                 )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -1684,13 +1965,13 @@ private fun PrivacySettingsView(
                             modifier = Modifier
                                 .size(42.dp)
                                 .clip(CircleShape)
-                                .background(accentColor.copy(alpha = 0.15f)),
+                                .background(if (isSecureDnsEnabled) accentColor.copy(alpha = 0.15f) else Color.Gray.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Dns,
                                 contentDescription = null,
-                                tint = accentColor,
+                                tint = if (isSecureDnsEnabled) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -1704,64 +1985,88 @@ private fun PrivacySettingsView(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Current: $currentDns",
+                                text = if (isSecureDnsEnabled) "Active • $currentDns" else "Turned off (Using system DNS)",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = accentColor
+                                color = if (isSecureDnsEnabled) accentColor else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+
+                        // DNS ON/OFF Toggle
+                        Switch(
+                            checked = isSecureDnsEnabled,
+                            onCheckedChange = { onToggleSecureDns(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = accentColor
+                            )
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    // Move all DNS providers inside this option (visible when toggle is ON)
+                    AnimatedVisibility(visible = isSecureDnsEnabled) {
+                        Column {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            Spacer(modifier = Modifier.height(10.dp))
 
-                    dnsProviders.forEach { (name, desc) ->
-                        val isSelected = if (name == "Custom DNS") isCustomMode else (currentDns == name && !isCustomMode)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    if (name == "Custom DNS") {
-                                        isCustomMode = true
-                                    } else {
-                                        isCustomMode = false
-                                        onSelectDns(name)
+                            Text(
+                                text = "Choose Secure DNS provider:",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            dnsProviders.forEach { (name, desc) ->
+                                val isSelected = if (name == "Custom DNS") isCustomMode else (currentDns == name && !isCustomMode)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            if (name == "Custom DNS") {
+                                                isCustomMode = true
+                                            } else {
+                                                isCustomMode = false
+                                                onSelectDns(name)
+                                            }
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = {
+                                            if (name == "Custom DNS") {
+                                                isCustomMode = true
+                                            } else {
+                                                isCustomMode = false
+                                                onSelectDns(name)
+                                            }
+                                        },
+                                        colors = RadioButtonDefaults.colors(selectedColor = accentColor)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(text = name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                                        Text(text = desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
-                                .padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = isSelected,
-                                onClick = {
-                                    if (name == "Custom DNS") {
-                                        isCustomMode = true
-                                    } else {
-                                        isCustomMode = false
-                                        onSelectDns(name)
-                                    }
-                                },
-                                colors = RadioButtonDefaults.colors(selectedColor = accentColor)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text(text = name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-                                Text(text = desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+
+                            if (isCustomMode) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                OutlinedTextField(
+                                    value = customAddressInput,
+                                    onValueChange = {
+                                        customAddressInput = it
+                                        onSaveCustomDns(it)
+                                        if (it.isNotBlank()) onSelectDns("Custom: $it")
+                                    },
+                                    label = { Text("Enter Custom DNS (e.g., 94.140.14.14)") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
                         }
-                    }
-
-                    if (isCustomMode) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        OutlinedTextField(
-                            value = customAddressInput,
-                            onValueChange = {
-                                customAddressInput = it
-                                onSaveCustomDns(it)
-                                if (it.isNotBlank()) onSelectDns("Custom: $it")
-                            },
-                            label = { Text("Enter Custom DNS (e.g., 94.140.14.14)") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
                     }
                 }
             }

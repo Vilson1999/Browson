@@ -48,6 +48,7 @@ data class BrowserUiState(
     val historySearchQuery: String = "",
     val isToolsMenuOpen: Boolean = false,
     val isFullScreen: Boolean = false,
+    val isDownloadsOpen: Boolean = false,
     val isFindInPageOpen: Boolean = false,
     val findInPageQuery: String = "",
     val findInPageMatchesCount: Int = 0,
@@ -383,6 +384,14 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             isSettingsOpen = visible,
             activeSettingsSection = section,
             isToolsMenuOpen = false
+        )
+    }
+
+    fun setDownloadsVisible(visible: Boolean) {
+        _uiState.value = _uiState.value.copy(
+            isDownloadsOpen = visible,
+            isToolsMenuOpen = false,
+            isSettingsOpen = false
         )
     }
 
